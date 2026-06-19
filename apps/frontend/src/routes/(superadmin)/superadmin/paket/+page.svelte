@@ -1,12 +1,24 @@
 <!--
 Tujuan: Menyediakan halaman kelola paket belajar (reguler, intensif, premium) untuk super admin.
 Caller: Route `/superadmin/paket`.
-Dependensi: Svelte 5 Runes, SvelteKit data, dan fetch API client.
-Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
+Dependensi: Svelte 5 Runes, SvelteKit data, fetch API client/helper, dan toast notification.
+Main Functions: CRUD paket secara interaktif dengan modal, reload state, dan feedback via toast.
+Side Effects: Melakukan HTTP call CRUD paket/fitur, memicu reload data, menampilkan toast, dan menampilkan hint validasi inline pada form modal.
 -->
 
 <script lang="ts">
   import { invalidateAll } from '$app/navigation'
+  import { inlineValidationForm } from '$lib/actions/inline-validation-form'
+  import { packageApi } from '$lib/infrastructure/api/package.api'
+  import { readApiData } from '$lib/infrastructure/api/response'
+  import { notify } from '$lib/infrastructure/notifications/notify'
+  import Select from '$lib/components/ui/Select.svelte'
+
+  const packageTypeOptions = [
+    { value: 'REGULER', label: 'Reguler' },
+    { value: 'INTENSIF', label: 'Intensif' },
+    { value: 'PREMIUM', label: 'Premium' }
+  ]
 
   let { data } = $props()
 
@@ -17,8 +29,6 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
   let isEditModalOpen = $state(false)
   let selectedPackage = $state<any>(null)
   let isLoading = $state(false)
-  let errorMsg = $state<string | null>(null)
-
   // Feature Modal states
   let isFeatureModalOpen = $state(false)
   let packageFeaturesList = $state<any[]>([])
@@ -56,7 +66,6 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
     durationDays = 30
     isActive = true
     sortOrder = 0
-    errorMsg = null
     isAddModalOpen = true
   }
 
@@ -69,33 +78,29 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
     durationDays = pkg.durationDays
     isActive = pkg.isActive
     sortOrder = pkg.sortOrder ?? 0
-    errorMsg = null
     isEditModalOpen = true
   }
 
   const handleCreate = async (e: SubmitEvent) => {
     e.preventDefault()
     isLoading = true
-    errorMsg = null
-
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/packages`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'content-type': 'application/json'
         },
         body: JSON.stringify({ name, type, description, price, durationDays, isActive, sortOrder })
       })
 
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.message || 'Gagal menambahkan paket')
-      }
+      await readApiData(res, 'Gagal menambahkan paket')
 
       isAddModalOpen = false
+      notify.success('Paket berhasil ditambahkan.')
       await invalidateAll()
     } catch (err: any) {
-      errorMsg = err.message
+      notify.error(err.message)
     } finally {
       isLoading = false
     }
@@ -104,26 +109,23 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
   const handleUpdate = async (e: SubmitEvent) => {
     e.preventDefault()
     isLoading = true
-    errorMsg = null
-
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/packages/${selectedPackage.id}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: {
           'content-type': 'application/json'
         },
         body: JSON.stringify({ name, type, description, price, durationDays, isActive, sortOrder })
       })
 
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.message || 'Gagal memperbarui paket')
-      }
+      await readApiData(res, 'Gagal memperbarui paket')
 
       isEditModalOpen = false
+      notify.success('Paket berhasil diperbarui.')
       await invalidateAll()
     } catch (err: any) {
-      errorMsg = err.message
+      notify.error(err.message)
     } finally {
       isLoading = false
     }
@@ -134,17 +136,16 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
 
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/packages/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       })
 
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.message || 'Gagal menghapus paket')
-      }
+      await readApiData(res, 'Gagal menghapus paket')
 
+      notify.success('Paket berhasil dihapus.')
       await invalidateAll()
     } catch (err: any) {
-      alert(err.message)
+      notify.error(err.message)
     }
   }
 
@@ -152,14 +153,16 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
     isFeatureLoading = true
     featureErrorMsg = null
     try {
-      const res = await fetch(`${apiBaseUrl}/superadmin/packages/${packageId}/features`)
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.message || 'Gagal memuat fitur paket')
-      }
-      packageFeaturesList = (result.data || []).sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+      const features = await readApiData<any[]>(
+        await fetch(`${apiBaseUrl}/superadmin/packages/${packageId}/features`, {
+          credentials: 'include'
+        }),
+        'Gagal memuat fitur paket'
+      )
+      packageFeaturesList = (features || []).sort((a: any, b: any) => a.sortOrder - b.sortOrder)
     } catch (err: any) {
-      featureErrorMsg = err.message
+      featureErrorMsg = null
+      notify.error(err.message)
     } finally {
       isFeatureLoading = false
     }
@@ -199,6 +202,7 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
       if (editingFeatureId) {
         res = await fetch(`${apiBaseUrl}/superadmin/packages/features/${editingFeatureId}`, {
           method: 'PATCH',
+          credentials: 'include',
           headers: {
             'content-type': 'application/json'
           },
@@ -211,6 +215,7 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
       } else {
         res = await fetch(`${apiBaseUrl}/superadmin/packages/${selectedPackage.id}/features`, {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'content-type': 'application/json'
           },
@@ -222,19 +227,19 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
         })
       }
 
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.message || 'Gagal menyimpan fitur paket')
-      }
+      await readApiData(res, 'Gagal menyimpan fitur paket')
 
       // Reset form & reload list
+      const wasEditingFeature = Boolean(editingFeatureId)
       editingFeatureId = null
       featureTitle = ''
       featureDescription = ''
       featureSortOrder = 0
+      notify.success(wasEditingFeature ? 'Fitur paket berhasil diperbarui.' : 'Fitur paket berhasil ditambahkan.')
       await loadFeatures(selectedPackage.id)
     } catch (err: any) {
-      featureErrorMsg = err.message
+      featureErrorMsg = null
+      notify.error(err.message)
     } finally {
       isFeatureLoading = false
     }
@@ -247,17 +252,16 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
 
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/packages/features/${featureId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       })
 
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.message || 'Gagal menghapus fitur paket')
-      }
+      await readApiData(res, 'Gagal menghapus fitur paket')
 
       await loadFeatures(selectedPackage.id)
     } catch (err: any) {
-      featureErrorMsg = err.message
+      featureErrorMsg = null
+      notify.error(err.message)
     } finally {
       isFeatureLoading = false
     }
@@ -279,18 +283,17 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
     isCurriculumLoading = true
 
     try {
-      // Load all subjects and mapped subjects in parallel
-      const [subjectsRes, mappedRes] = await Promise.all([
-        fetch(`${apiBaseUrl}/superadmin/subjects`),
-        fetch(`${apiBaseUrl}/superadmin/packages/${pkg.id}/subjects`)
+      // Load all subjects and mapped subjects in parallel using the secure packageApi client
+      const [subjectsData, mappedData] = await Promise.all([
+        packageApi.listAllSubjects(),
+        packageApi.listSubjects(pkg.id)
       ])
-      const subjectsData = await subjectsRes.json()
-      const mappedData = await mappedRes.json()
 
-      allSubjectsList = (subjectsData.data || []).sort((a: any, b: any) => a.sortOrder - b.sortOrder)
-      mappedSubjectIds = new Set(mappedData.data || [])
+      allSubjectsList = (subjectsData || []).sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+      mappedSubjectIds = new Set(mappedData || [])
     } catch (err: any) {
-      curriculumErrorMsg = 'Gagal memuat data kurikulum'
+      curriculumErrorMsg = null
+      notify.error(err.message || 'Gagal memuat data kurikulum')
     } finally {
       isCurriculumLoading = false
     }
@@ -312,21 +315,11 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
     curriculumSuccessMsg = null
 
     try {
-      const res = await fetch(`${apiBaseUrl}/superadmin/packages/${selectedPackage.id}/subjects`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ subjectIds: [...mappedSubjectIds] })
-      })
-
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.message || 'Gagal menyimpan kurikulum paket')
-      }
-
-      curriculumSuccessMsg = 'Kurikulum paket berhasil disimpan!'
-      setTimeout(() => { curriculumSuccessMsg = null }, 3000)
+      await packageApi.assignSubjects(selectedPackage.id, [...mappedSubjectIds])
+      notify.success('Kurikulum paket berhasil disimpan.')
     } catch (err: any) {
-      curriculumErrorMsg = err.message
+      curriculumErrorMsg = null
+      notify.error(err.message || 'Gagal menyimpan kurikulum paket')
     } finally {
       isCurriculumLoading = false
     }
@@ -357,7 +350,7 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
         <button
           type="button"
           onclick={openAddModal}
-          class="inline-flex items-center gap-1.5 rounded-lg border-2 border-black bg-neo-green px-5 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+          class="inline-flex items-center gap-1.5 rounded-xl border-[3px] border-black bg-neo-green px-5 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-4 w-4">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -415,28 +408,28 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
                   <button
                     type="button"
                     onclick={() => openFeatureModal(pkg)}
-                    class="rounded-lg border-2 border-black bg-neo-blue px-3 py-1.5 text-xs font-extrabold uppercase text-white shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+                    class="rounded-lg border-[3px] border-black bg-neo-blue px-3 py-1.5 text-xs font-black uppercase text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
                   >
                     Fitur
                   </button>
                   <button
                     type="button"
                     onclick={() => openCurriculumModal(pkg)}
-                    class="rounded-lg border-2 border-black bg-neo-purple px-3 py-1.5 text-xs font-extrabold uppercase text-white shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+                    class="rounded-lg border-[3px] border-black bg-neo-purple px-3 py-1.5 text-xs font-black uppercase text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
                   >
                     Kurikulum
                   </button>
                   <button
                     type="button"
                     onclick={() => openEditModal(pkg)}
-                    class="rounded-lg border-2 border-black bg-neo-yellow px-3 py-1.5 text-xs font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+                    class="rounded-lg border-[3px] border-black bg-neo-yellow px-3 py-1.5 text-xs font-black uppercase text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
                   >
                     Edit
                   </button>
                   <button
                     type="button"
                     onclick={() => handleDelete(pkg.id)}
-                    class="rounded-lg border-2 border-black bg-neo-red px-3 py-1.5 text-xs font-extrabold uppercase text-white shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+                    class="rounded-lg border-[3px] border-black bg-neo-red px-3 py-1.5 text-xs font-black uppercase text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
                   >
                     Hapus
                   </button>
@@ -457,71 +450,80 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
     <div class="w-full max-w-md rounded-2xl border-4 border-black bg-white p-8 shadow-solid-lg">
       <h2 class="text-2xl font-black uppercase text-ink">Tambah Paket Baru</h2>
       <p class="mt-1 text-xs font-bold text-ink/50">Buat paket akses belajar baru.</p>
-
-      {#if errorMsg}
-        <div class="mt-4 rounded-xl border-2 border-black bg-neo-red/20 p-3 text-xs font-bold text-black">
-          {errorMsg}
-        </div>
-      {/if}
-
-      <form onsubmit={handleCreate} class="mt-6 space-y-4">
+      <form use:inlineValidationForm onsubmit={handleCreate} class="mt-6 space-y-4">
         <div>
-          <label class="block text-xs font-black text-black uppercase">Nama Paket</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Nama Paket <span class="text-neo-red">*</span></label>
           <input
             type="text"
             required
             bind:value={name}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Nama paket wajib diisi."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Masukkan nama paket..."
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Tipe Paket</label>
-          <select
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Tipe Paket <span class="text-neo-red">*</span></label>
+          <Select
+            options={packageTypeOptions}
             bind:value={type}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
-          >
-            <option value="REGULER">Reguler</option>
-            <option value="INTENSIF">Intensif</option>
-            <option value="PREMIUM">Premium</option>
-          </select>
+            placeholder="Pilih Tipe Paket"
+            searchable={false}
+            class="mt-2"
+          />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Harga (Rupiah)</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Harga (Rupiah) <span class="text-neo-red">*</span></label>
           <input
             type="number"
             required
+            min="0"
             bind:value={price}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Harga paket wajib diisi."
+            data-min-message="Harga paket tidak boleh kurang dari 0."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Contoh: 150000"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Durasi Akses (Hari)</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Durasi Akses (Hari) <span class="text-neo-red">*</span></label>
           <input
             type="number"
             required
+            min="1"
             bind:value={durationDays}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Durasi akses wajib diisi."
+            data-min-message="Durasi akses minimal 1 hari."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Contoh: 30"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Urutan Tampilan</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Urutan Tampilan <span class="text-neo-red">*</span></label>
           <input
             type="number"
             required
+            min="0"
             bind:value={sortOrder}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Urutan tampilan wajib diisi."
+            data-min-message="Urutan tampilan tidak boleh kurang dari 0."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Contoh: 1"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Deskripsi</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Deskripsi</label>
           <textarea
             bind:value={description}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Deskripsi singkat paket..."
+            rows="3"
+            data-validation-rule="Opsional, jelaskan benefit singkat paket"
           ></textarea>
         </div>
 
@@ -529,14 +531,14 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
           <button
             type="button"
             onclick={() => (isAddModalOpen = false)}
-            class="w-1/2 rounded-xl border-2 border-black bg-slate-100 px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-slate-100 px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
           >
             Batal
           </button>
           <button
             type="submit"
             disabled={isLoading}
-            class="w-1/2 rounded-xl border-2 border-black bg-neo-green px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform disabled:opacity-50"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-neo-green px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
           >
             {isLoading ? 'Menyimpan...' : 'Simpan'}
           </button>
@@ -552,71 +554,80 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
     <div class="w-full max-w-md rounded-2xl border-4 border-black bg-white p-8 shadow-solid-lg">
       <h2 class="text-2xl font-black uppercase text-ink">Perbarui Paket</h2>
       <p class="mt-1 text-xs font-bold text-ink/50">Edit detail paket belajar.</p>
-
-      {#if errorMsg}
-        <div class="mt-4 rounded-xl border-2 border-black bg-neo-red/20 p-3 text-xs font-bold text-black">
-          {errorMsg}
-        </div>
-      {/if}
-
-      <form onsubmit={handleUpdate} class="mt-6 space-y-4">
+      <form use:inlineValidationForm onsubmit={handleUpdate} class="mt-6 space-y-4">
         <div>
-          <label class="block text-xs font-black text-black uppercase">Nama Paket</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Nama Paket <span class="text-neo-red">*</span></label>
           <input
             type="text"
             required
             bind:value={name}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Nama paket wajib diisi."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Masukkan nama paket..."
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Tipe Paket</label>
-          <select
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Tipe Paket <span class="text-neo-red">*</span></label>
+          <Select
+            options={packageTypeOptions}
             bind:value={type}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
-          >
-            <option value="REGULER">Reguler</option>
-            <option value="INTENSIF">Intensif</option>
-            <option value="PREMIUM">Premium</option>
-          </select>
+            placeholder="Pilih Tipe Paket"
+            searchable={false}
+            class="mt-2"
+          />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Harga (Rupiah)</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Harga (Rupiah) <span class="text-neo-red">*</span></label>
           <input
             type="number"
             required
+            min="0"
             bind:value={price}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Harga paket wajib diisi."
+            data-min-message="Harga paket tidak boleh kurang dari 0."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Contoh: 150000"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Durasi Akses (Hari)</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Durasi Akses (Hari) <span class="text-neo-red">*</span></label>
           <input
             type="number"
             required
+            min="1"
             bind:value={durationDays}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Durasi akses wajib diisi."
+            data-min-message="Durasi akses minimal 1 hari."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Contoh: 30"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Urutan Tampilan</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Urutan Tampilan <span class="text-neo-red">*</span></label>
           <input
             type="number"
             required
+            min="0"
             bind:value={sortOrder}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Urutan tampilan wajib diisi."
+            data-min-message="Urutan tampilan tidak boleh kurang dari 0."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Contoh: 1"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Deskripsi</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Deskripsi</label>
           <textarea
             bind:value={description}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Deskripsi singkat paket..."
+            rows="3"
+            data-validation-rule="Opsional, jelaskan benefit singkat paket"
           ></textarea>
         </div>
 
@@ -625,23 +636,23 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
             type="checkbox"
             id="checkbox-is-active"
             bind:checked={isActive}
-            class="h-5 w-5 rounded border-2 border-black accent-black focus:ring-0"
+            class="h-5 w-5 rounded border-[3px] border-black bg-white accent-black focus:ring-0 cursor-pointer shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
           />
-          <label for="checkbox-is-active" class="text-sm font-extrabold uppercase text-ink">Paket Aktif</label>
+          <label for="checkbox-is-active" class="text-sm font-black uppercase text-ink select-none cursor-pointer">Paket Akses Aktif</label>
         </div>
 
         <div class="mt-8 flex gap-3">
           <button
             type="button"
             onclick={() => (isEditModalOpen = false)}
-            class="w-1/2 rounded-xl border-2 border-black bg-slate-100 px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-slate-100 px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
           >
             Batal
           </button>
           <button
             type="submit"
             disabled={isLoading}
-            class="w-1/2 rounded-xl border-2 border-black bg-neo-green px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform disabled:opacity-50"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-neo-green px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
           >
             {isLoading ? 'Menyimpan...' : 'Simpan'}
           </button>
@@ -667,20 +678,21 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
           </p>
 
           {#if featureErrorMsg}
-            <div class="mt-4 rounded-xl border-2 border-black bg-neo-red/20 p-3 text-xs font-bold text-black">
+            <div class="mt-4 rounded-xl border-[3px] border-black bg-neo-red/20 p-3 text-xs font-bold text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
               {featureErrorMsg}
             </div>
           {/if}
 
-          <form onsubmit={handleSubmitFeature} class="mt-6 space-y-4">
+          <form use:inlineValidationForm onsubmit={handleSubmitFeature} class="mt-6 space-y-4">
             <div>
-              <label class="block text-xs font-black text-black uppercase">Nama Fitur / Benefit</label>
+              <label class="block text-xs font-black text-black uppercase">Nama Fitur / Benefit <span class="text-neo-red">*</span></label>
               <input
                 type="text"
                 required
                 placeholder="Contoh: Akses 20+ Tryout Akbar"
                 bind:value={featureTitle}
-                class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+                data-required-message="Nama fitur wajib diisi."
+                class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
               />
             </div>
 
@@ -689,18 +701,22 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
               <textarea
                 placeholder="Contoh: Pembahasan soal video & pdf lengkap"
                 bind:value={featureDescription}
-                class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+                data-validation-rule="Opsional, jelaskan detail benefit singkat"
+                class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
                 rows="3"
               ></textarea>
             </div>
 
             <div>
-              <label class="block text-xs font-black text-black uppercase">Urutan Tampilan</label>
+              <label class="block text-xs font-black text-black uppercase">Urutan Tampilan <span class="text-neo-red">*</span></label>
               <input
                 type="number"
                 required
+                min="0"
                 bind:value={featureSortOrder}
-                class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+                data-required-message="Urutan tampilan fitur wajib diisi."
+                data-min-message="Urutan tampilan fitur tidak boleh kurang dari 0."
+                class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
               />
             </div>
 
@@ -709,7 +725,7 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
                 <button
                   type="button"
                   onclick={cancelEditFeature}
-                  class="w-1/2 rounded-xl border-2 border-black bg-slate-100 px-4 py-3 text-xs font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+                  class="w-1/2 rounded-xl border-[3px] border-black bg-slate-100 px-4 py-3 text-xs font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
                 >
                   Batal
                 </button>
@@ -717,7 +733,7 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
               <button
                 type="submit"
                 disabled={isFeatureLoading}
-                class="{editingFeatureId ? 'w-1/2' : 'w-full'} rounded-xl border-2 border-black bg-neo-green px-4 py-3 text-xs font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform disabled:opacity-50"
+                class="{editingFeatureId ? 'w-1/2' : 'w-full'} rounded-xl border-[3px] border-black bg-neo-green px-4 py-3 text-xs font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
               >
                 {isFeatureLoading ? 'Menyimpan...' : (editingFeatureId ? 'Simpan' : 'Tambah Fitur')}
               </button>
@@ -725,11 +741,11 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
           </form>
         </div>
 
-        <div class="mt-8 border-t-4 border-black pt-4">
+        <div class="mt-8 border-t-[3px] border-black pt-4">
           <button
             type="button"
             onclick={() => (isFeatureModalOpen = false)}
-            class="w-full rounded-xl border-2 border-black bg-neo-yellow px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+            class="w-full rounded-xl border-[3px] border-black bg-neo-yellow px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
           >
             Tutup Kelola Fitur
           </button>
@@ -737,20 +753,20 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
       </div>
 
       <!-- Right Column: List of Existing Features -->
-      <div class="w-full md:w-7/12 border-t-4 md:border-t-0 md:border-l-4 border-black pt-8 md:pt-0 md:pl-8 flex flex-col">
+      <div class="w-full md:w-7/12 border-t-[3px] md:border-t-0 md:border-l-[3px] border-black pt-8 md:pt-0 md:pl-8 flex flex-col">
         <div class="flex items-center justify-between mb-4">
           <div>
             <h3 class="text-xl font-black uppercase text-ink">Fitur Saat Ini</h3>
             <p class="text-xs font-bold text-ink/50">Daftar benefit pada paket {selectedPackage?.name}</p>
           </div>
-          <span class="rounded-lg border-2 border-black bg-slate-100 px-3 py-1 font-mono text-xs font-extrabold">
+          <span class="rounded-lg border-[3px] border-black bg-slate-100 px-3 py-1 font-mono text-xs font-black text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
             {packageFeaturesList.length} Item
           </span>
         </div>
 
         <div class="flex-grow overflow-y-auto max-h-[50vh] pr-2 space-y-4">
           {#if packageFeaturesList.length === 0}
-            <div class="flex flex-col items-center justify-center py-12 border-2 border-dashed border-black/20 rounded-xl bg-slate-50 text-center">
+            <div class="flex flex-col items-center justify-center py-12 border-[3px] border-dashed border-black/20 rounded-xl bg-slate-50 text-center">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-black/35 mb-2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.03 0 1.9.693 2.166 1.638m-7.377 12.408.097.007c.077.005.155.007.234.007a3.486 3.486 0 0 0 2.562-1.078M9.75 16.122l-.53.53a1.5 1.5 0 0 1-2.122-2.122l.53-.53" />
               </svg>
@@ -759,10 +775,10 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
             </div>
           {:else}
             {#each packageFeaturesList as feat (feat.id)}
-              <div class="rounded-xl border-2 border-black bg-white p-4 shadow-solid-sm flex items-start justify-between gap-4">
+              <div class="rounded-xl border-[3px] border-black bg-white p-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-start justify-between gap-4">
                 <div class="flex-grow space-y-1">
                   <div class="flex items-center gap-2">
-                    <span class="inline-block rounded bg-slate-100 border border-black px-1.5 py-0.5 font-mono text-[10px] font-black text-black">
+                    <span class="inline-block rounded bg-slate-100 border-[2px] border-black px-1.5 py-0.5 font-mono text-[10px] font-black text-black">
                       #{feat.sortOrder}
                     </span>
                     <h4 class="font-extrabold text-sm text-ink">{feat.title}</h4>
@@ -775,14 +791,14 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
                   <button
                     type="button"
                     onclick={() => startEditFeature(feat)}
-                    class="rounded-md border border-black bg-neo-yellow px-2 py-1 text-[10px] font-black uppercase text-black hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+                    class="rounded-md border-[2px] border-black bg-neo-yellow px-2 py-1 text-[10px] font-black uppercase text-black hover:-translate-y-0.5 active:translate-y-0 transition-transform shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
                   >
                     Edit
                   </button>
                   <button
                     type="button"
                     onclick={() => handleDeleteFeature(feat.id)}
-                    class="rounded-md border border-black bg-neo-red px-2 py-1 text-[10px] font-black uppercase text-white hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+                    class="rounded-md border-[2px] border-black bg-neo-red px-2 py-1 text-[10px] font-black uppercase text-white hover:-translate-y-0.5 active:translate-y-0 transition-transform shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
                   >
                     Hapus
                   </button>
@@ -800,10 +816,10 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
 <!-- Modal: Kelola Kurikulum Paket -->
 {#if isCurriculumModalOpen && selectedPackage}
   <div class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div class="w-full max-w-lg rounded-2xl border-4 border-black bg-white shadow-solid-lg flex flex-col max-h-[90vh]">
+    <div class="w-full max-w-lg rounded-2xl border-[4px] border-black bg-white shadow-solid-lg flex flex-col max-h-[90vh]">
       
       <!-- Header -->
-      <div class="flex-shrink-0 p-6 border-b-4 border-black">
+      <div class="flex-shrink-0 p-6 border-b-[3px] border-black">
         <div class="flex items-start justify-between gap-4">
           <div>
             <h2 class="text-xl font-black uppercase text-ink">Kelola Kurikulum</h2>
@@ -811,22 +827,30 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
               Pilih mata pelajaran yang termasuk dalam <span class="text-neo-purple font-black">{selectedPackage.name}</span>
             </p>
           </div>
-          <button
-            type="button"
-            onclick={() => { isCurriculumModalOpen = false }}
-            class="rounded-lg border-2 border-black bg-neo-red px-3 py-1.5 text-xs font-extrabold uppercase text-white shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform flex-shrink-0"
-          >
-            ✕ Tutup
-          </button>
+          <div class="flex gap-2 flex-shrink-0">
+            <a
+              href="/superadmin/kurikulum"
+              class="rounded-lg border-[3px] border-black bg-neo-blue px-3 py-1.5 text-xs font-black uppercase text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+            >
+              ⚙️ Kelola Mata Pelajaran
+            </a>
+            <button
+              type="button"
+              onclick={() => { isCurriculumModalOpen = false }}
+              class="rounded-lg border-[3px] border-black bg-neo-red px-3 py-1.5 text-xs font-black uppercase text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+            >
+              ✕ Tutup
+            </button>
+          </div>
         </div>
 
         {#if curriculumErrorMsg}
-          <div class="mt-3 rounded-xl border-2 border-black bg-neo-red/20 p-3 text-xs font-bold text-black">
+          <div class="mt-3 rounded-xl border-[3px] border-black bg-neo-red/20 p-3 text-xs font-bold text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
             {curriculumErrorMsg}
           </div>
         {/if}
         {#if curriculumSuccessMsg}
-          <div class="mt-3 rounded-xl border-2 border-black bg-neo-green/30 p-3 text-xs font-bold text-black">
+          <div class="mt-3 rounded-xl border-[3px] border-black bg-neo-green/30 p-3 text-xs font-bold text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
             ✓ {curriculumSuccessMsg}
           </div>
         {/if}
@@ -836,13 +860,22 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
       <div class="flex-grow overflow-y-auto p-6">
         {#if isCurriculumLoading}
           <div class="flex items-center justify-center py-12">
-            <div class="h-8 w-8 animate-spin rounded-full border-4 border-black border-t-neo-purple"></div>
+            <div class="h-8 w-8 animate-spin rounded-full border-[3px] border-black border-t-neo-purple"></div>
             <span class="ml-3 font-bold text-ink/60 text-sm">Memuat data kurikulum...</span>
           </div>
         {:else if allSubjectsList.length === 0}
-          <div class="flex flex-col items-center justify-center py-12 gap-3">
+          <div class="flex flex-col items-center justify-center py-12 gap-4 text-center">
             <span class="text-4xl">📚</span>
-            <p class="text-sm font-bold text-ink/40 text-center">Belum ada mata pelajaran yang dibuat.<br>Buat terlebih dahulu di menu Kurikulum.</p>
+            <div>
+              <p class="text-sm font-bold text-ink/40">Belum ada mata pelajaran yang dibuat.</p>
+              <p class="text-xs text-ink/30 mt-1">Buat dan kelola mata pelajaran terlebih dahulu di halaman Kurikulum.</p>
+            </div>
+            <a
+              href="/superadmin/kurikulum"
+              class="rounded-lg border-[3px] border-black bg-neo-purple px-4 py-2.5 text-xs font-black uppercase text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+            >
+              ⚙️ Buat Mata Pelajaran Baru
+            </a>
           </div>
         {:else}
           <div class="space-y-2">
@@ -851,12 +884,12 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
               <button
                 type="button"
                 onclick={() => toggleSubject(subject.id)}
-                class="w-full flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all duration-150 hover:-translate-y-0.5 {isChecked
-                  ? 'border-black bg-neo-purple/10 shadow-solid-sm'
-                  : 'border-black/30 bg-white hover:border-black'}"
+                class="w-full flex items-center gap-4 rounded-xl border-[3px] p-4 text-left transition-all duration-150 {isChecked
+                  ? 'border-black bg-neo-purple/10 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]'
+                  : 'border-black/30 bg-white hover:border-black hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]'}"
               >
                 <!-- Custom Checkbox -->
-                <div class="flex-shrink-0 h-6 w-6 rounded-md border-2 border-black flex items-center justify-center transition-colors {isChecked ? 'bg-neo-purple' : 'bg-white'}">
+                <div class="flex-shrink-0 h-6 w-6 rounded-md border-[2px] border-black flex items-center justify-center transition-colors {isChecked ? 'bg-neo-purple' : 'bg-white'}">
                   {#if isChecked}
                     <span class="text-white text-sm font-black leading-none">✓</span>
                   {/if}
@@ -872,7 +905,7 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
 
                 <!-- Active Badge -->
                 {#if isChecked}
-                  <span class="flex-shrink-0 rounded-md border border-black bg-neo-purple px-2 py-0.5 text-[10px] font-black uppercase text-white">Termasuk</span>
+                  <span class="flex-shrink-0 rounded-md border-[2px] border-black bg-neo-purple px-2 py-0.5 text-[10px] font-black uppercase text-white shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">Termasuk</span>
                 {/if}
               </button>
             {/each}
@@ -882,7 +915,7 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
 
       <!-- Footer Save Button -->
       {#if !isCurriculumLoading && allSubjectsList.length > 0}
-        <div class="flex-shrink-0 p-6 border-t-4 border-black bg-gray-50 rounded-b-2xl">
+        <div class="flex-shrink-0 p-6 border-t-[3px] border-black bg-gray-50 rounded-b-2xl">
           <div class="flex items-center justify-between gap-4">
             <p class="text-xs font-bold text-ink/50">
               {mappedSubjectIds.size} dari {allSubjectsList.length} mata pelajaran dipilih
@@ -891,7 +924,7 @@ Main Functions: CRUD paket secara interaktif dengan modal dan reload state.
               type="button"
               onclick={handleSaveCurriculum}
               disabled={isCurriculumLoading}
-              class="rounded-lg border-2 border-black bg-neo-purple px-5 py-2 text-sm font-extrabold uppercase text-white shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform disabled:opacity-50"
+              class="rounded-lg border-[3px] border-black bg-neo-purple px-5 py-2 text-sm font-black uppercase text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
             >
               {isCurriculumLoading ? 'Menyimpan...' : '💾 Simpan Kurikulum'}
             </button>

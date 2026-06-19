@@ -1,14 +1,15 @@
 <!--
 Tujuan: Menjadi shell root frontend fase 0 dengan header publik dan render seluruh route.
 Caller: Semua halaman SvelteKit.
-Dependensi: app.css global dan route children SvelteKit.
-Main Functions: Menyediakan navigasi dasar, branding proyek, dan slot render halaman.
-Side Effects: Tidak ada selain render UI root lintas halaman.
+Dependensi: app.css global, ToastHost internal, dan route children SvelteKit.
+Main Functions: Menyediakan navigasi dasar, branding proyek, slot render halaman, dan host toast notification global.
+Side Effects: Merender toaster global lintas halaman.
 -->
 
 <script lang="ts">
   import '../app.css'
   import 'katex/dist/katex.min.css'
+  import ToastHost from '$lib/components/ui/ToastHost.svelte'
 
   let { children } = $props()
 
@@ -21,6 +22,7 @@ Side Effects: Tidak ada selain render UI root lintas halaman.
 </script>
 
 <div class="flex flex-col min-h-screen">
+  <ToastHost />
   <header id="app-header" class="sticky top-0 z-20 border-b-4 border-black bg-neo-yellow shrink-0">
     <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
       <a href="/" class="text-xl font-extrabold uppercase tracking-tight text-black">LMS Bimbel</a>

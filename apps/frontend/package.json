@@ -39,8 +39,8 @@
   "x-doc": {
     "tujuan": "Manifest frontend fase 0 untuk SvelteKit, Svelte 5, dan Tailwind CSS v4.",
     "caller": "Vite dev server, SvelteKit build, Docker frontend image, developer lokal.",
-    "dependensi": "svelte, @sveltejs/kit, tailwindcss, @tailwindcss/vite, shared package.",
-    "mainFunctions": "Menyediakan dependency dan script utama frontend fase 0.",
+    "dependensi": "svelte, @sveltejs/kit, tailwindcss, @tailwindcss/vite, dan shared package.",
+    "mainFunctions": "Menyediakan dependency dan script utama frontend fase 0 termasuk host toast notification internal.",
     "sideEffects": "Menjalankan dev server, build, preview, dan typecheck frontend."
   }
 }

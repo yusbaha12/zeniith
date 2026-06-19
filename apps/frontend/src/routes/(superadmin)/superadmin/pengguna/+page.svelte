@@ -1,15 +1,44 @@
 <!--
 Tujuan: Menyediakan halaman kelola seluruh pengguna sistem (admin, guru, murid) untuk super admin.
 Caller: Route `/superadmin/pengguna`.
-Dependensi: Svelte 5 Runes, SvelteKit data, dan fetch API client.
-Main Functions: CRUD pengguna global secara interaktif dengan modal dan reload state.
+Dependensi: Svelte 5 Runes, SvelteKit data, fetch API response helper, dan toast notification.
+Main Functions: CRUD pengguna global secara interaktif dengan modal, reload state, dan feedback via toast.
+Side Effects: Melakukan HTTP call CRUD pengguna, memicu reload data, menampilkan toast, dan menampilkan hint validasi inline pada form modal.
 -->
 
 <script lang="ts">
   import { invalidateAll } from '$app/navigation'
   import { page } from '$app/state'
+  import { inlineValidationForm } from '$lib/actions/inline-validation-form'
+  import { readApiData } from '$lib/infrastructure/api/response'
+  import { notify } from '$lib/infrastructure/notifications/notify'
+  import Select from '$lib/components/ui/Select.svelte'
+
+  const roleOptions = [
+    { value: 'SUPER_ADMIN', label: 'Super Admin' },
+    { value: 'BRANCH_ADMIN', label: 'Admin Cabang' },
+    { value: 'TEACHER', label: 'Guru' },
+    { value: 'STUDENT', label: 'Murid' }
+  ]
+
+  const roleFilterOptions = [
+    { value: '', label: 'Semua Peran' },
+    { value: 'SUPER_ADMIN', label: 'Super Admin' },
+    { value: 'BRANCH_ADMIN', label: 'Admin Cabang' },
+    { value: 'TEACHER', label: 'Guru' },
+    { value: 'STUDENT', label: 'Murid' }
+  ]
 
   let { data } = $props()
+
+  let branchFilterOptions = $derived([
+    { value: '', label: 'Semua Cabang' },
+    ...data.branches.map((b: any) => ({ value: b.id, label: `${b.name} (${b.code})` }))
+  ])
+
+  let branchOptions = $derived(
+    data.branches.map((b: any) => ({ value: b.id, label: `${b.name} (${b.code})` }))
+  )
 
   const apiBaseUrl = import.meta.env.VITE_PUBLIC_API_URL ?? 'http://localhost:3000/api'
 
@@ -23,8 +52,6 @@ Main Functions: CRUD pengguna global secara interaktif dengan modal dan reload s
   let isEditModalOpen = $state(false)
   let selectedUser = $state<any>(null)
   let isLoading = $state(false)
-  let errorMsg = $state<string | null>(null)
-
   // Form states
   let name = $state('')
   let email = $state('')
@@ -66,7 +93,6 @@ Main Functions: CRUD pengguna global secara interaktif dengan modal dan reload s
     role = 'STUDENT'
     branchId = data.branches[0]?.id ?? ''
     isActive = true
-    errorMsg = null
     isAddModalOpen = true
   }
 
@@ -79,15 +105,12 @@ Main Functions: CRUD pengguna global secara interaktif dengan modal dan reload s
     role = userObj.role
     branchId = userObj.branchId ?? ''
     isActive = userObj.isActive
-    errorMsg = null
     isEditModalOpen = true
   }
 
   const handleCreate = async (e: SubmitEvent) => {
     e.preventDefault()
     isLoading = true
-    errorMsg = null
-
     try {
       const body: any = {
         name,
@@ -100,21 +123,20 @@ Main Functions: CRUD pengguna global secara interaktif dengan modal dan reload s
 
       const res = await fetch(`${apiBaseUrl}/superadmin/users`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'content-type': 'application/json'
         },
         body: JSON.stringify(body)
       })
 
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.message || 'Gagal menambahkan pengguna')
-      }
+      await readApiData(res, 'Gagal menambahkan pengguna')
 
       isAddModalOpen = false
+      notify.success('Pengguna berhasil ditambahkan.')
       await invalidateAll()
     } catch (err: any) {
-      errorMsg = err.message
+      notify.error(err.message)
     } finally {
       isLoading = false
     }
@@ -123,8 +145,6 @@ Main Functions: CRUD pengguna global secara interaktif dengan modal dan reload s
   const handleUpdate = async (e: SubmitEvent) => {
     e.preventDefault()
     isLoading = true
-    errorMsg = null
-
     try {
       const body: any = {
         name,
@@ -138,21 +158,20 @@ Main Functions: CRUD pengguna global secara interaktif dengan modal dan reload s
 
       const res = await fetch(`${apiBaseUrl}/superadmin/users/${selectedUser.id}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: {
           'content-type': 'application/json'
         },
         body: JSON.stringify(body)
       })
 
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.message || 'Gagal memperbarui pengguna')
-      }
+      await readApiData(res, 'Gagal memperbarui pengguna')
 
       isEditModalOpen = false
+      notify.success('Pengguna berhasil diperbarui.')
       await invalidateAll()
     } catch (err: any) {
-      errorMsg = err.message
+      notify.error(err.message)
     } finally {
       isLoading = false
     }
@@ -163,17 +182,16 @@ Main Functions: CRUD pengguna global secara interaktif dengan modal dan reload s
 
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/users/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       })
 
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.message || 'Gagal menonaktifkan pengguna')
-      }
+      await readApiData(res, 'Gagal menonaktifkan pengguna')
 
+      notify.success('Pengguna berhasil dinonaktifkan.')
       await invalidateAll()
     } catch (err: any) {
-      alert(err.message)
+      notify.error(err.message)
     }
   }
 </script>
@@ -213,34 +231,36 @@ Main Functions: CRUD pengguna global secara interaktif dengan modal dan reload s
   </div>
 
   <!-- Search & Filters -->
-  <form onsubmit={handleSearch} class="grid gap-3 sm:grid-cols-4">
-    <input
-      type="text"
-      bind:value={searchQuery}
-      placeholder="Cari nama/email..."
-      class="rounded-xl border-2 border-black bg-white px-4 py-3 text-sm font-bold outline-none focus:bg-neo-yellow/5 focus:ring-0 sm:col-span-2"
-    />
+  <form onsubmit={handleSearch} class="grid gap-3 sm:grid-cols-4 items-end">
+    <div class="sm:col-span-2">
+      <label class="block text-[10px] font-black text-black uppercase tracking-wider mb-1">Cari Pengguna</label>
+      <input
+        type="text"
+        bind:value={searchQuery}
+        placeholder="Cari nama/email..."
+        class="w-full rounded-xl border-[3px] border-black bg-white px-4 py-3 text-sm font-black text-black outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+      />
+    </div>
 
-    <select
-      bind:value={selectedRoleFilter}
-      class="rounded-xl border-2 border-black bg-white px-4 py-3 text-sm font-bold outline-none focus:bg-neo-yellow/5 focus:ring-0"
-    >
-      <option value="">Semua Peran</option>
-      <option value="SUPER_ADMIN">Super Admin</option>
-      <option value="BRANCH_ADMIN">Admin Cabang</option>
-      <option value="TEACHER">Guru</option>
-      <option value="STUDENT">Murid</option>
-    </select>
+    <div>
+      <label class="block text-[10px] font-black text-black uppercase tracking-wider mb-1">Filter Peran</label>
+      <Select
+        options={roleFilterOptions}
+        bind:value={selectedRoleFilter}
+        placeholder="Semua Peran"
+        searchable={false}
+      />
+    </div>
 
-    <select
-      bind:value={selectedBranchFilter}
-      class="rounded-xl border-2 border-black bg-white px-4 py-3 text-sm font-bold outline-none focus:bg-neo-yellow/5 focus:ring-0"
-    >
-      <option value="">Semua Cabang</option>
-      {#each data.branches as branch}
-        <option value={branch.id}>{branch.name} ({branch.code})</option>
-      {/each}
-    </select>
+    <div>
+      <label class="block text-[10px] font-black text-black uppercase tracking-wider mb-1">Filter Cabang</label>
+      <Select
+        options={branchFilterOptions}
+        bind:value={selectedBranchFilter}
+        placeholder="Semua Cabang"
+        searchable={true}
+      />
+    </div>
 
     <button
       type="submit"
@@ -351,77 +371,77 @@ Main Functions: CRUD pengguna global secara interaktif dengan modal dan reload s
     <div class="w-full max-w-md rounded-2xl border-4 border-black bg-white p-8 shadow-solid-lg">
       <h2 class="text-2xl font-black uppercase text-ink">Tambah Pengguna Baru</h2>
       <p class="mt-1 text-xs font-bold text-ink/50">Daftarkan akun sistem baru.</p>
-
-      {#if errorMsg}
-        <div class="mt-4 rounded-xl border-2 border-black bg-neo-red/20 p-3 text-xs font-bold text-black">
-          {errorMsg}
-        </div>
-      {/if}
-
-      <form onsubmit={handleCreate} class="mt-6 space-y-4">
+      <form use:inlineValidationForm onsubmit={handleCreate} class="mt-6 space-y-4">
         <div>
-          <label class="block text-xs font-black text-black uppercase">Nama Lengkap</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Nama Lengkap <span class="text-neo-red">*</span></label>
           <input
             type="text"
             required
             bind:value={name}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Nama pengguna wajib diisi."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Contoh: Budi Santoso"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Email</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Email <span class="text-neo-red">*</span></label>
           <input
             type="email"
             required
             bind:value={email}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Email pengguna wajib diisi."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Contoh: budi@gmail.com"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Password</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Password <span class="text-neo-red">*</span></label>
           <input
             type="password"
             required
+            minlength="6"
             bind:value={password}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Password pengguna wajib diisi."
+            data-minlength-message="Password pengguna minimal 6 karakter."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Minimal 6 karakter"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">No Telepon</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">No Telepon</label>
           <input
             type="tel"
             bind:value={phone}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-validation-rule="Opsional, gunakan nomor aktif pengguna"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Contoh: 08123456789"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Peran Sistem</label>
-          <select
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Peran Sistem <span class="text-neo-red">*</span></label>
+          <Select
+            options={roleOptions}
             bind:value={role}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
-          >
-            <option value="SUPER_ADMIN">Super Admin</option>
-            <option value="BRANCH_ADMIN">Admin Cabang</option>
-            <option value="TEACHER">Guru</option>
-            <option value="STUDENT">Murid</option>
-          </select>
+            placeholder="Pilih Peran Sistem"
+            searchable={false}
+            class="mt-2"
+          />
         </div>
 
         {#if role !== 'SUPER_ADMIN'}
           <div>
-            <label class="block text-xs font-black text-black uppercase">Tugaskan Cabang</label>
-            <select
+            <label class="block text-xs font-black text-black uppercase tracking-wider">Tugaskan Cabang <span class="text-neo-red">*</span></label>
+            <Select
+              options={branchOptions}
               bind:value={branchId}
-              class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
-            >
-              {#each data.branches as branch}
-                <option value={branch.id}>{branch.name} ({branch.code})</option>
-              {/each}
-            </select>
+              placeholder="Pilih Cabang"
+              searchable={true}
+            class="mt-2"
+          />
           </div>
         {/if}
 
@@ -452,77 +472,76 @@ Main Functions: CRUD pengguna global secara interaktif dengan modal dan reload s
     <div class="w-full max-w-md rounded-2xl border-4 border-black bg-white p-8 shadow-solid-lg">
       <h2 class="text-2xl font-black uppercase text-ink">Perbarui Pengguna</h2>
       <p class="mt-1 text-xs font-bold text-ink/50">Edit detail profil, peran, & cabang pengguna.</p>
-
-      {#if errorMsg}
-        <div class="mt-4 rounded-xl border-2 border-black bg-neo-red/20 p-3 text-xs font-bold text-black">
-          {errorMsg}
-        </div>
-      {/if}
-
-      <form onsubmit={handleUpdate} class="mt-6 space-y-4">
+      <form use:inlineValidationForm onsubmit={handleUpdate} class="mt-6 space-y-4">
         <div>
-          <label class="block text-xs font-black text-black uppercase">Nama Lengkap</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Nama Lengkap <span class="text-neo-red">*</span></label>
           <input
             type="text"
             required
             bind:value={name}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Nama pengguna wajib diisi."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Contoh: Budi Santoso"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Email</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Email <span class="text-neo-red">*</span></label>
           <input
             type="email"
             required
             bind:value={email}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Email pengguna wajib diisi."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Contoh: budi@gmail.com"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Password Baru (Opsional)</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Password Baru (Opsional)</label>
           <input
             type="password"
+            minlength="6"
             bind:value={password}
             placeholder="Biarkan kosong jika tidak diganti"
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-validation-rule="Kosongkan jika password tidak diubah"
+            data-minlength-message="Password baru minimal 6 karakter."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">No Telepon</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">No Telepon</label>
           <input
             type="tel"
             bind:value={phone}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-validation-rule="Opsional, gunakan nomor aktif pengguna"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Contoh: 08123456789"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Peran Sistem</label>
-          <select
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Peran Sistem <span class="text-neo-red">*</span></label>
+          <Select
+            options={roleOptions}
             bind:value={role}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
-          >
-            <option value="SUPER_ADMIN">Super Admin</option>
-            <option value="BRANCH_ADMIN">Admin Cabang</option>
-            <option value="TEACHER">Guru</option>
-            <option value="STUDENT">Murid</option>
-          </select>
+            placeholder="Pilih Peran Sistem"
+            searchable={false}
+            class="mt-2"
+          />
         </div>
 
         {#if role !== 'SUPER_ADMIN'}
           <div>
-            <label class="block text-xs font-black text-black uppercase">Tugaskan Cabang</label>
-            <select
+            <label class="block text-xs font-black text-black uppercase tracking-wider">Tugaskan Cabang <span class="text-neo-red">*</span></label>
+            <Select
+              options={branchOptions}
               bind:value={branchId}
-              class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
-            >
-              {#each data.branches as branch}
-                <option value={branch.id}>{branch.name} ({branch.code})</option>
-              {/each}
-            </select>
+              placeholder="Pilih Cabang"
+              searchable={true}
+            class="mt-2"
+          />
           </div>
         {/if}
 

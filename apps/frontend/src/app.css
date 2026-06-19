@@ -2,7 +2,7 @@
 Tujuan: Menyediakan styling global frontend fase 0 dengan Tailwind dan identitas visual proyek.
 Caller: Root layout SvelteKit.
 Dependensi: Tailwind CSS v4 CSS-first, token @theme, dan font Plus Jakarta Sans dari app.html.
-Main Functions: Mengaktifkan import Tailwind v4, token tema proyek, dan styling global body/selection.
+Main Functions: Mengaktifkan import Tailwind v4, token tema proyek, styling global body/selection, dan utilitas visual neobrutalism.
 Side Effects: Mempengaruhi seluruh tampilan frontend lintas route.
 */
 

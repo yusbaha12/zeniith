@@ -1,12 +1,16 @@
 <!--
 Tujuan: Menyediakan halaman kelola kurikulum global (mata pelajaran dan modul) untuk super admin.
 Caller: Route `/superadmin/kurikulum`.
-Dependensi: Svelte 5 Runes, SvelteKit data, dan fetch API client.
-Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
+Dependensi: Svelte 5 Runes, SvelteKit data, fetch API response helper, dan toast notification.
+Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject dengan feedback via toast.
+Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilkan toast, dan menampilkan hint validasi inline pada form modal.
 -->
 
 <script lang="ts">
   import { invalidateAll } from '$app/navigation'
+  import { inlineValidationForm } from '$lib/actions/inline-validation-form'
+  import { readApiData } from '$lib/infrastructure/api/response'
+  import { notify } from '$lib/infrastructure/notifications/notify'
 
   let { data } = $props()
 
@@ -24,8 +28,6 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
   let parentSubjectIdForModule = $state('')
 
   let isLoading = $state(false)
-  let errorMsg = $state<string | null>(null)
-
   // Common Form fields
   let name = $state('')
   let title = $state('')
@@ -46,7 +48,6 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
     description = ''
     sortOrder = 0
     isActive = true
-    errorMsg = null
     isAddSubjModalOpen = true
   }
 
@@ -56,29 +57,27 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
     description = subj.description ?? ''
     sortOrder = subj.sortOrder ?? 0
     isActive = subj.isActive
-    errorMsg = null
     isEditSubjModalOpen = true
   }
 
   const handleCreateSubject = async (e: SubmitEvent) => {
     e.preventDefault()
     isLoading = true
-    errorMsg = null
-
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/subjects`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name, description, sortOrder, isActive })
       })
 
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.message || 'Gagal membuat mata pelajaran')
+      await readApiData(res, 'Gagal membuat mata pelajaran')
 
       isAddSubjModalOpen = false
+      notify.success('Mata pelajaran berhasil dibuat.')
       await invalidateAll()
     } catch (err: any) {
-      errorMsg = err.message
+      notify.error(err.message)
     } finally {
       isLoading = false
     }
@@ -87,22 +86,21 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
   const handleUpdateSubject = async (e: SubmitEvent) => {
     e.preventDefault()
     isLoading = true
-    errorMsg = null
-
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/subjects/${selectedSubject.id}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name, description, sortOrder, isActive })
       })
 
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.message || 'Gagal memperbarui mata pelajaran')
+      await readApiData(res, 'Gagal memperbarui mata pelajaran')
 
       isEditSubjModalOpen = false
+      notify.success('Mata pelajaran berhasil diperbarui.')
       await invalidateAll()
     } catch (err: any) {
-      errorMsg = err.message
+      notify.error(err.message)
     } finally {
       isLoading = false
     }
@@ -113,15 +111,16 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
 
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/subjects/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       })
 
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.message || 'Gagal menghapus mata pelajaran')
+      await readApiData(res, 'Gagal menghapus mata pelajaran')
 
+      notify.success('Mata pelajaran berhasil dihapus.')
       await invalidateAll()
     } catch (err: any) {
-      alert(err.message)
+      notify.error(err.message)
     }
   }
 
@@ -132,7 +131,6 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
     description = ''
     sortOrder = 0
     isActive = true
-    errorMsg = null
     isAddModModalOpen = true
   }
 
@@ -142,29 +140,27 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
     description = mod.description ?? ''
     sortOrder = mod.sortOrder ?? 0
     isActive = mod.isActive
-    errorMsg = null
     isEditModModalOpen = true
   }
 
   const handleCreateModule = async (e: SubmitEvent) => {
     e.preventDefault()
     isLoading = true
-    errorMsg = null
-
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/modules`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ subjectId: parentSubjectIdForModule, title, description, sortOrder, isActive })
       })
 
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.message || 'Gagal membuat modul')
+      await readApiData(res, 'Gagal membuat modul')
 
       isAddModModalOpen = false
+      notify.success('Modul berhasil dibuat.')
       await invalidateAll()
     } catch (err: any) {
-      errorMsg = err.message
+      notify.error(err.message)
     } finally {
       isLoading = false
     }
@@ -173,22 +169,21 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
   const handleUpdateModule = async (e: SubmitEvent) => {
     e.preventDefault()
     isLoading = true
-    errorMsg = null
-
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/modules/${selectedModule.id}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ title, description, sortOrder, isActive })
       })
 
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.message || 'Gagal memperbarui modul')
+      await readApiData(res, 'Gagal memperbarui modul')
 
       isEditModModalOpen = false
+      notify.success('Modul berhasil diperbarui.')
       await invalidateAll()
     } catch (err: any) {
-      errorMsg = err.message
+      notify.error(err.message)
     } finally {
       isLoading = false
     }
@@ -199,15 +194,16 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
 
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/modules/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       })
 
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.message || 'Gagal menghapus modul')
+      await readApiData(res, 'Gagal menghapus modul')
 
+      notify.success('Modul berhasil dihapus.')
       await invalidateAll()
     } catch (err: any) {
-      alert(err.message)
+      notify.error(err.message)
     }
   }
 </script>
@@ -235,7 +231,7 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
         <button
           type="button"
           onclick={openAddSubject}
-          class="inline-flex items-center gap-1.5 rounded-lg border-2 border-black bg-neo-green px-5 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+          class="inline-flex items-center gap-1.5 rounded-xl border-[3px] border-black bg-neo-green px-5 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-4 w-4">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -290,14 +286,14 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
               <button
                 type="button"
                 onclick={() => openEditSubject(subj)}
-                class="rounded-lg border-2 border-black bg-neo-yellow px-3 py-1.5 text-xs font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+                class="rounded-lg border-[3px] border-black bg-neo-yellow px-3 py-1.5 text-xs font-black uppercase text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
               >
                 Edit
               </button>
               <button
                 type="button"
                 onclick={() => handleDeleteSubject(subj.id)}
-                class="rounded-lg border-2 border-black bg-neo-red px-3 py-1.5 text-xs font-extrabold uppercase text-white shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+                class="rounded-lg border-[3px] border-black bg-neo-red px-3 py-1.5 text-xs font-black uppercase text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
               >
                 Hapus
               </button>
@@ -312,7 +308,7 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
                 <button
                   type="button"
                   onclick={() => openAddModule(subj.id)}
-                  class="rounded-lg border-2 border-black bg-neo-green px-4 py-2 text-xs font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+                  class="rounded-xl border-[3px] border-black bg-neo-green px-4 py-2 text-xs font-black uppercase text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
                 >
                   + Tambah Modul
                 </button>
@@ -339,14 +335,14 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
                         <button
                           type="button"
                           onclick={() => openEditModule(mod)}
-                          class="rounded border-2 border-black bg-neo-yellow px-3 py-1 text-xs font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+                          class="rounded border-[3px] border-black bg-neo-yellow px-3 py-1 text-xs font-black uppercase text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
                         >
                           Edit
                         </button>
                         <button
                           type="button"
                           onclick={() => handleDeleteModule(mod.id)}
-                          class="rounded border-2 border-black bg-neo-red px-3 py-1 text-xs font-extrabold uppercase text-white shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+                          class="rounded border-[3px] border-black bg-neo-red px-3 py-1 text-xs font-black uppercase text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
                         >
                           Hapus
                         </button>
@@ -369,39 +365,38 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
     <div class="w-full max-w-md rounded-2xl border-4 border-black bg-white p-8 shadow-solid-lg">
       <h2 class="text-2xl font-black uppercase text-ink">Tambah Mata Pelajaran</h2>
       <p class="mt-1 text-xs font-bold text-ink/50">Buat mata pelajaran baru di kurikulum global.</p>
-
-      {#if errorMsg}
-        <div class="mt-4 rounded-xl border-2 border-black bg-neo-red/20 p-3 text-xs font-bold text-black">
-          {errorMsg}
-        </div>
-      {/if}
-
-      <form onsubmit={handleCreateSubject} class="mt-6 space-y-4">
+      <form use:inlineValidationForm onsubmit={handleCreateSubject} class="mt-6 space-y-4">
         <div>
-          <label class="block text-xs font-black text-black uppercase">Nama Mata Pelajaran</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Nama Mata Pelajaran <span class="text-neo-red">*</span></label>
           <input
             type="text"
             required
             bind:value={name}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Nama mata pelajaran wajib diisi."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Urutan Tampilan</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Urutan Tampilan <span class="text-neo-red">*</span></label>
           <input
             type="number"
             required
+            min="0"
             bind:value={sortOrder}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Urutan tampilan wajib diisi."
+            data-min-message="Urutan tampilan tidak boleh kurang dari 0."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Deskripsi</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Deskripsi</label>
           <textarea
             bind:value={description}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            rows="3"
+            data-validation-rule="Opsional, ringkas cakupan materi utama"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           ></textarea>
         </div>
 
@@ -409,14 +404,14 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
           <button
             type="button"
             onclick={() => (isAddSubjModalOpen = false)}
-            class="w-1/2 rounded-xl border-2 border-black bg-slate-100 px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-slate-100 px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
           >
             Batal
           </button>
           <button
             type="submit"
             disabled={isLoading}
-            class="w-1/2 rounded-xl border-2 border-black bg-neo-green px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform disabled:opacity-50"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-neo-green px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
           >
             {isLoading ? 'Menyimpan...' : 'Simpan'}
           </button>
@@ -432,39 +427,38 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
     <div class="w-full max-w-md rounded-2xl border-4 border-black bg-white p-8 shadow-solid-lg">
       <h2 class="text-2xl font-black uppercase text-ink">Perbarui Mata Pelajaran</h2>
       <p class="mt-1 text-xs font-bold text-ink/50">Edit detail mata pelajaran.</p>
-
-      {#if errorMsg}
-        <div class="mt-4 rounded-xl border-2 border-black bg-neo-red/20 p-3 text-xs font-bold text-black">
-          {errorMsg}
-        </div>
-      {/if}
-
-      <form onsubmit={handleUpdateSubject} class="mt-6 space-y-4">
+      <form use:inlineValidationForm onsubmit={handleUpdateSubject} class="mt-6 space-y-4">
         <div>
-          <label class="block text-xs font-black text-black uppercase">Nama Mata Pelajaran</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Nama Mata Pelajaran <span class="text-neo-red">*</span></label>
           <input
             type="text"
             required
             bind:value={name}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Nama mata pelajaran wajib diisi."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Urutan Tampilan</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Urutan Tampilan <span class="text-neo-red">*</span></label>
           <input
             type="number"
             required
+            min="0"
             bind:value={sortOrder}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Urutan tampilan wajib diisi."
+            data-min-message="Urutan tampilan tidak boleh kurang dari 0."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Deskripsi</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Deskripsi</label>
           <textarea
             bind:value={description}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            rows="3"
+            data-validation-rule="Opsional, ringkas cakupan materi utama"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           ></textarea>
         </div>
 
@@ -473,23 +467,23 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
             type="checkbox"
             id="checkbox-subj-active"
             bind:checked={isActive}
-            class="h-5 w-5 rounded border-2 border-black accent-black focus:ring-0 cursor-pointer"
+            class="h-5 w-5 rounded border-[3px] border-black bg-white accent-black focus:ring-0 cursor-pointer shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
           />
-          <label for="checkbox-subj-active" class="text-sm font-extrabold uppercase text-ink">Mapel Aktif</label>
+          <label for="checkbox-subj-active" class="text-sm font-black uppercase text-ink select-none cursor-pointer">Mapel Aktif</label>
         </div>
 
         <div class="mt-8 flex gap-3">
           <button
             type="button"
             onclick={() => (isEditSubjModalOpen = false)}
-            class="w-1/2 rounded-xl border-2 border-black bg-slate-100 px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-slate-100 px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
           >
             Batal
           </button>
           <button
             type="submit"
             disabled={isLoading}
-            class="w-1/2 rounded-xl border-2 border-black bg-neo-green px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform disabled:opacity-50"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-neo-green px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
           >
             {isLoading ? 'Menyimpan...' : 'Simpan'}
           </button>
@@ -505,39 +499,38 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
     <div class="w-full max-w-md rounded-2xl border-4 border-black bg-white p-8 shadow-solid-lg">
       <h2 class="text-2xl font-black uppercase text-ink">Tambah Modul Baru</h2>
       <p class="mt-1 text-xs font-bold text-ink/50">Tambahkan modul ke mata pelajaran ini.</p>
-
-      {#if errorMsg}
-        <div class="mt-4 rounded-xl border-2 border-black bg-neo-red/20 p-3 text-xs font-bold text-black">
-          {errorMsg}
-        </div>
-      {/if}
-
-      <form onsubmit={handleCreateModule} class="mt-6 space-y-4">
+      <form use:inlineValidationForm onsubmit={handleCreateModule} class="mt-6 space-y-4">
         <div>
-          <label class="block text-xs font-black text-black uppercase">Judul Modul</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Judul Modul <span class="text-neo-red">*</span></label>
           <input
             type="text"
             required
             bind:value={title}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Judul modul wajib diisi."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Urutan Tampilan</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Urutan Tampilan <span class="text-neo-red">*</span></label>
           <input
             type="number"
             required
+            min="0"
             bind:value={sortOrder}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Urutan tampilan wajib diisi."
+            data-min-message="Urutan tampilan tidak boleh kurang dari 0."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Deskripsi</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Deskripsi</label>
           <textarea
             bind:value={description}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            rows="3"
+            data-validation-rule="Opsional, ringkas tujuan modul"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           ></textarea>
         </div>
 
@@ -545,14 +538,14 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
           <button
             type="button"
             onclick={() => (isAddModModalOpen = false)}
-            class="w-1/2 rounded-xl border-2 border-black bg-slate-100 px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-slate-100 px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
           >
             Batal
           </button>
           <button
             type="submit"
             disabled={isLoading}
-            class="w-1/2 rounded-xl border-2 border-black bg-neo-green px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform disabled:opacity-50"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-neo-green px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
           >
             {isLoading ? 'Menyimpan...' : 'Simpan'}
           </button>
@@ -568,39 +561,38 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
     <div class="w-full max-w-md rounded-2xl border-4 border-black bg-white p-8 shadow-solid-lg">
       <h2 class="text-2xl font-black uppercase text-ink">Perbarui Modul</h2>
       <p class="mt-1 text-xs font-bold text-ink/50">Edit detail modul belajar.</p>
-
-      {#if errorMsg}
-        <div class="mt-4 rounded-xl border-2 border-black bg-neo-red/20 p-3 text-xs font-bold text-black">
-          {errorMsg}
-        </div>
-      {/if}
-
-      <form onsubmit={handleUpdateModule} class="mt-6 space-y-4">
+      <form use:inlineValidationForm onsubmit={handleUpdateModule} class="mt-6 space-y-4">
         <div>
-          <label class="block text-xs font-black text-black uppercase">Judul Modul</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Judul Modul <span class="text-neo-red">*</span></label>
           <input
             type="text"
             required
             bind:value={title}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Judul modul wajib diisi."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Urutan Tampilan</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Urutan Tampilan <span class="text-neo-red">*</span></label>
           <input
             type="number"
             required
+            min="0"
             bind:value={sortOrder}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Urutan tampilan wajib diisi."
+            data-min-message="Urutan tampilan tidak boleh kurang dari 0."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Deskripsi</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Deskripsi</label>
           <textarea
             bind:value={description}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            rows="3"
+            data-validation-rule="Opsional, ringkas tujuan modul"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           ></textarea>
         </div>
 
@@ -609,23 +601,23 @@ Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject.
             type="checkbox"
             id="checkbox-mod-active"
             bind:checked={isActive}
-            class="h-5 w-5 rounded border-2 border-black accent-black focus:ring-0 cursor-pointer"
+            class="h-5 w-5 rounded border-[3px] border-black bg-white accent-black focus:ring-0 cursor-pointer shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
           />
-          <label for="checkbox-mod-active" class="text-sm font-extrabold uppercase text-ink">Modul Aktif</label>
+          <label for="checkbox-mod-active" class="text-sm font-black uppercase text-ink select-none cursor-pointer">Modul Aktif</label>
         </div>
 
         <div class="mt-8 flex gap-3">
           <button
             type="button"
             onclick={() => (isEditModModalOpen = false)}
-            class="w-1/2 rounded-xl border-2 border-black bg-slate-100 px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-slate-100 px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
           >
             Batal
           </button>
           <button
             type="submit"
             disabled={isLoading}
-            class="w-1/2 rounded-xl border-2 border-black bg-neo-green px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform disabled:opacity-50"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-neo-green px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
           >
             {isLoading ? 'Menyimpan...' : 'Simpan'}
           </button>

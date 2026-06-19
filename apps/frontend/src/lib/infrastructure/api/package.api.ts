@@ -24,6 +24,8 @@ export const packageApi = {
     apiClient.delete<void>(`/superadmin/packages/features/${featureId}`),
 
   // Superadmin Package Curriculum (Subject) Mapping
+  listAllSubjects: () =>
+    apiClient.get<any[]>('/superadmin/subjects'),
   listSubjects: (packageId: string) =>
     apiClient.get<string[]>(`/superadmin/packages/${packageId}/subjects`),
   assignSubjects: (packageId: string, subjectIds: string[]) =>

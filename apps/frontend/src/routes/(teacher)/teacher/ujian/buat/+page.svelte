@@ -1,9 +1,9 @@
 <!--
 Tujuan: Menyediakan halaman pembuatan metadata ujian guru fase 4.
 Caller: Route `/teacher/ujian/buat`.
-Dependensi: Exam API frontend, Material API subject list, dan navigation helper.
-Main Functions: Mengumpulkan metadata ujian lalu membuat exam baru sebelum guru menambah soal.
-Side Effects: Melakukan HTTP call ke backend `/api/teacher/exams`.
+Dependensi: Exam API frontend, Material API subject list, navigation helper, dan toast notification.
+Main Functions: Mengumpulkan metadata ujian, membuat exam baru sebelum guru menambah soal, dan mengirim feedback via toast.
+Side Effects: Melakukan HTTP call ke backend `/api/teacher/exams`, menampilkan toast, dan memicu redirect.
 -->
 
 <script lang="ts">
@@ -13,6 +13,8 @@ Side Effects: Melakukan HTTP call ke backend `/api/teacher/exams`.
   import type { FrontendSubject } from '$lib/domain/types/material.types'
   import { examApi } from '$lib/infrastructure/api/exam.api'
   import { materialApi } from '$lib/infrastructure/api/material.api'
+  import { notify } from '$lib/infrastructure/notifications/notify'
+  import Select from '$lib/components/ui/Select.svelte'
 
   let subjects = $state<FrontendSubject[]>([])
   let loadError = $state<string | null>(null)
@@ -28,6 +30,18 @@ Side Effects: Melakukan HTTP call ke backend `/api/teacher/exams`.
     endsAt: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().slice(0, 16),
     isPublished: true
   })
+
+  // Derived subject options for the Select component
+  let subjectOptions = $derived(
+    subjects.map(s => ({ value: s.id, label: s.name }))
+  )
+
+  const examTypeOptions = [
+    { value: 'TRYOUT', label: 'Try Out' },
+    { value: 'LATIHAN', label: 'Latihan' },
+    { value: 'MID_EXAM', label: 'Mid Exam' },
+    { value: 'FINAL_EXAM', label: 'Final Exam' }
+  ]
 
   onMount(async () => {
     subjects = await materialApi.listSubjects()
@@ -51,9 +65,12 @@ Side Effects: Melakukan HTTP call ke backend `/api/teacher/exams`.
         isPublished: form.isPublished
       })
 
+      notify.success('Metadata ujian berhasil dibuat. Lanjut ke editor soal...')
       await goto(`/teacher/ujian/${exam.id}/edit`)
     } catch (error) {
-      loadError = error instanceof Error ? error.message : 'Ujian gagal dibuat'
+      const message = error instanceof Error ? error.message : 'Ujian gagal dibuat'
+      loadError = message
+      notify.error(message)
     } finally {
       isSubmitting = false
     }
@@ -79,67 +96,112 @@ Side Effects: Melakukan HTTP call ke backend `/api/teacher/exams`.
     </div>
   </div>
 
-  <div class="rounded-[2rem] border border-white/60 bg-white/80 p-6 shadow-glow backdrop-blur-xl space-y-5">
-    <label class="block">
-      <span class="mb-2 block text-sm font-semibold text-ink">Mata Pelajaran</span>
-      <select bind:value={form.subjectId} class="w-full rounded-2xl border border-lavender/30 px-4 py-3 outline-none">
-        {#each subjects as subject}
-          <option value={subject.id}>{subject.name}</option>
-        {/each}
-      </select>
-    </label>
-
-    <label class="block">
-      <span class="mb-2 block text-sm font-semibold text-ink">Judul Ujian</span>
-      <input bind:value={form.title} class="w-full rounded-2xl border border-lavender/30 px-4 py-3 outline-none" />
-    </label>
-
-    <label class="block">
-      <span class="mb-2 block text-sm font-semibold text-ink">Deskripsi</span>
-      <textarea bind:value={form.description} rows="4" class="w-full rounded-2xl border border-lavender/30 px-4 py-3 outline-none"></textarea>
-    </label>
-
-    <label class="block">
-      <span class="mb-2 block text-sm font-semibold text-ink">Instruksi</span>
-      <textarea bind:value={form.instructions} rows="5" class="w-full rounded-2xl border border-lavender/30 px-4 py-3 outline-none"></textarea>
-    </label>
-
-    <div class="grid gap-4 md:grid-cols-2">
-      <label class="block">
-        <span class="mb-2 block text-sm font-semibold text-ink">Tipe Ujian</span>
-        <select bind:value={form.examType} class="w-full rounded-2xl border border-lavender/30 px-4 py-3 outline-none">
-          <option value="TRYOUT">Try Out</option>
-          <option value="LATIHAN">Latihan</option>
-          <option value="MID_EXAM">Mid Exam</option>
-          <option value="FINAL_EXAM">Final Exam</option>
-        </select>
-      </label>
-      <label class="block">
-        <span class="mb-2 block text-sm font-semibold text-ink">Durasi (menit)</span>
-        <input type="number" bind:value={form.durationMinutes} class="w-full rounded-2xl border border-lavender/30 px-4 py-3 outline-none" />
-      </label>
-      <label class="block">
-        <span class="mb-2 block text-sm font-semibold text-ink">Mulai</span>
-        <input type="datetime-local" bind:value={form.startsAt} class="w-full rounded-2xl border border-lavender/30 px-4 py-3 outline-none" />
-      </label>
-      <label class="block">
-        <span class="mb-2 block text-sm font-semibold text-ink">Selesai</span>
-        <input type="datetime-local" bind:value={form.endsAt} class="w-full rounded-2xl border border-lavender/30 px-4 py-3 outline-none" />
-      </label>
+  <div class="rounded-2xl border-4 border-black bg-white p-8 shadow-solid space-y-6">
+    <div>
+      <label class="block text-xs font-black text-black uppercase tracking-wider">Mata Pelajaran</label>
+      <Select
+        options={subjectOptions}
+        bind:value={form.subjectId}
+        placeholder="Pilih Mata Pelajaran"
+        searchable={true}
+        class="mt-2"
+      />
     </div>
 
-    <label class="flex items-center gap-3 text-sm font-semibold text-ink">
-      <input type="checkbox" bind:checked={form.isPublished} />
-      Publish setelah dibuat
-    </label>
+    <div>
+      <label class="block text-xs font-black text-black uppercase tracking-wider">Judul Ujian</label>
+      <input
+        bind:value={form.title}
+        class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+        placeholder="Contoh: Try Out Akbar CPNS 2026"
+      />
+    </div>
 
-    <button type="button" class="rounded-2xl bg-ink px-5 py-3 text-sm font-semibold text-white" onclick={handleSubmit} disabled={isSubmitting}>
-      {isSubmitting ? 'Menyimpan...' : 'Buat Ujian'}
-    </button>
+    <div>
+      <label class="block text-xs font-black text-black uppercase tracking-wider">Deskripsi</label>
+      <textarea
+        bind:value={form.description}
+        rows="4"
+        class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+        placeholder="Deskripsi singkat mengenai pelaksanaan ujian..."
+      ></textarea>
+    </div>
+
+    <div>
+      <label class="block text-xs font-black text-black uppercase tracking-wider">Instruksi</label>
+      <textarea
+        bind:value={form.instructions}
+        rows="5"
+        class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+        placeholder="Instruksi pengerjaan ujian untuk murid..."
+      ></textarea>
+    </div>
+
+    <div class="grid gap-6 md:grid-cols-2">
+      <div>
+        <label class="block text-xs font-black text-black uppercase tracking-wider">Tipe Ujian</label>
+        <Select
+          options={examTypeOptions}
+          bind:value={form.examType}
+          placeholder="Pilih Tipe Ujian"
+          searchable={false}
+          class="mt-2"
+        />
+      </div>
+
+      <div>
+        <label class="block text-xs font-black text-black uppercase tracking-wider">Durasi (menit)</label>
+        <input
+          type="number"
+          bind:value={form.durationMinutes}
+          class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+        />
+      </div>
+
+      <div>
+        <label class="block text-xs font-black text-black uppercase tracking-wider">Waktu Mulai</label>
+        <input
+          type="datetime-local"
+          bind:value={form.startsAt}
+          class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+        />
+      </div>
+
+      <div>
+        <label class="block text-xs font-black text-black uppercase tracking-wider">Waktu Selesai</label>
+        <input
+          type="datetime-local"
+          bind:value={form.endsAt}
+          class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+        />
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <input
+        type="checkbox"
+        id="checkbox-is-published"
+        bind:checked={form.isPublished}
+        class="h-5 w-5 rounded border-2 border-black accent-black focus:ring-0 cursor-pointer"
+      />
+      <label for="checkbox-is-published" class="text-sm font-extrabold uppercase text-ink cursor-pointer">Publish setelah dibuat</label>
+    </div>
+
+    <div class="pt-4">
+      <button
+        type="button"
+        class="rounded-xl border-[3px] border-black bg-neo-green px-6 py-3 text-sm font-black text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50 disabled:pointer-events-none"
+        onclick={handleSubmit}
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? 'Menyimpan...' : 'Buat Ujian & Lanjutkan'}
+      </button>
+    </div>
 
     {#if loadError}
-      <p class="text-sm font-medium text-red-600">{loadError}</p>
+      <div class="mt-4 rounded-xl border-2 border-black bg-neo-red/20 p-3 text-xs font-bold text-black">
+        {loadError}
+      </div>
     {/if}
   </div>
 </section>
-

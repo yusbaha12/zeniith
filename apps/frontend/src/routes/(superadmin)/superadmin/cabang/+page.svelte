@@ -1,12 +1,16 @@
 <!--
 Tujuan: Menyediakan halaman kelola seluruh cabang untuk super admin.
 Caller: Route `/superadmin/cabang`.
-Dependensi: Svelte 5 Runes, SvelteKit data, dan fetch API client.
-Main Functions: CRUD cabang se-nasional secara interaktif dengan modal dan reload state.
+Dependensi: Svelte 5 Runes, SvelteKit data, fetch API response helper, dan toast notification.
+Main Functions: CRUD cabang se-nasional secara interaktif dengan modal, reload state, dan feedback via toast.
+Side Effects: Melakukan HTTP call CRUD cabang, memicu reload data, menampilkan toast, dan menampilkan hint validasi inline pada form modal.
 -->
 
 <script lang="ts">
   import { invalidateAll } from '$app/navigation'
+  import { inlineValidationForm } from '$lib/actions/inline-validation-form'
+  import { readApiData } from '$lib/infrastructure/api/response'
+  import { notify } from '$lib/infrastructure/notifications/notify'
 
   let { data } = $props()
 
@@ -17,8 +21,6 @@ Main Functions: CRUD cabang se-nasional secara interaktif dengan modal dan reloa
   let isEditModalOpen = $state(false)
   let selectedBranch = $state<any>(null)
   let isLoading = $state(false)
-  let errorMsg = $state<string | null>(null)
-
   // Form states
   let name = $state('')
   let code = $state('')
@@ -34,7 +36,6 @@ Main Functions: CRUD cabang se-nasional secara interaktif dengan modal dan reloa
     city = ''
     phone = ''
     isActive = true
-    errorMsg = null
     isAddModalOpen = true
   }
 
@@ -46,33 +47,29 @@ Main Functions: CRUD cabang se-nasional secara interaktif dengan modal dan reloa
     city = branch.city ?? ''
     phone = branch.phone ?? ''
     isActive = branch.isActive
-    errorMsg = null
     isEditModalOpen = true
   }
 
   const handleCreate = async (e: SubmitEvent) => {
     e.preventDefault()
     isLoading = true
-    errorMsg = null
-
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/branches`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'content-type': 'application/json'
         },
         body: JSON.stringify({ name, code, address, city, phone, isActive })
       })
 
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.message || 'Gagal menambahkan cabang')
-      }
+      await readApiData(res, 'Gagal menambahkan cabang')
 
       isAddModalOpen = false
+      notify.success('Cabang berhasil ditambahkan.')
       await invalidateAll()
     } catch (err: any) {
-      errorMsg = err.message
+      notify.error(err.message)
     } finally {
       isLoading = false
     }
@@ -81,26 +78,23 @@ Main Functions: CRUD cabang se-nasional secara interaktif dengan modal dan reloa
   const handleUpdate = async (e: SubmitEvent) => {
     e.preventDefault()
     isLoading = true
-    errorMsg = null
-
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/branches/${selectedBranch.id}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: {
           'content-type': 'application/json'
         },
         body: JSON.stringify({ name, code, address, city, phone, isActive })
       })
 
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.message || 'Gagal memperbarui cabang')
-      }
+      await readApiData(res, 'Gagal memperbarui cabang')
 
       isEditModalOpen = false
+      notify.success('Cabang berhasil diperbarui.')
       await invalidateAll()
     } catch (err: any) {
-      errorMsg = err.message
+      notify.error(err.message)
     } finally {
       isLoading = false
     }
@@ -111,17 +105,16 @@ Main Functions: CRUD cabang se-nasional secara interaktif dengan modal dan reloa
 
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/branches/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       })
 
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.message || 'Gagal menghapus cabang')
-      }
+      await readApiData(res, 'Gagal menghapus cabang')
 
+      notify.success('Cabang berhasil dihapus.')
       await invalidateAll()
     } catch (err: any) {
-      alert(err.message)
+      notify.error(err.message)
     }
   }
 </script>
@@ -149,7 +142,7 @@ Main Functions: CRUD cabang se-nasional secara interaktif dengan modal dan reloa
         <button
           type="button"
           onclick={openAddModal}
-          class="inline-flex items-center gap-1.5 rounded-lg border-2 border-black bg-neo-green px-5 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+          class="inline-flex items-center gap-1.5 rounded-xl border-[3px] border-black bg-neo-green px-5 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-4 w-4">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -201,14 +194,14 @@ Main Functions: CRUD cabang se-nasional secara interaktif dengan modal dan reloa
                   <button
                     type="button"
                     onclick={() => openEditModal(branch)}
-                    class="rounded-lg border-2 border-black bg-neo-yellow px-3 py-1.5 text-xs font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+                    class="rounded-lg border-[3px] border-black bg-neo-yellow px-3 py-1.5 text-xs font-black uppercase text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
                   >
                     Edit
                   </button>
                   <button
                     type="button"
                     onclick={() => handleDelete(branch.id)}
-                    class="rounded-lg border-2 border-black bg-neo-red px-3 py-1.5 text-xs font-extrabold uppercase text-white shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+                    class="rounded-lg border-[3px] border-black bg-neo-red px-3 py-1.5 text-xs font-black uppercase text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
                   >
                     Hapus
                   </button>
@@ -228,58 +221,58 @@ Main Functions: CRUD cabang se-nasional secara interaktif dengan modal dan reloa
     <div class="w-full max-w-md rounded-2xl border-4 border-black bg-white p-8 shadow-solid-lg">
       <h2 class="text-2xl font-black uppercase text-ink">Tambah Cabang Baru</h2>
       <p class="mt-1 text-xs font-bold text-ink/50">Buat cabang bimbel baru secara global.</p>
-
-      {#if errorMsg}
-        <div class="mt-4 rounded-xl border-2 border-black bg-neo-red/20 p-3 text-xs font-bold text-black">
-          {errorMsg}
-        </div>
-      {/if}
-
-      <form onsubmit={handleCreate} class="mt-6 space-y-4">
+      <form use:inlineValidationForm onsubmit={handleCreate} class="mt-6 space-y-4">
         <div>
-          <label class="block text-xs font-black text-black uppercase">Nama Cabang</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Nama Cabang <span class="text-neo-red">*</span></label>
           <input
             type="text"
             required
             bind:value={name}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Nama cabang wajib diisi."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Kode Cabang</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Kode Cabang <span class="text-neo-red">*</span></label>
           <input
             type="text"
             required
             bind:value={code}
             placeholder="Contoh: BDG01, JKT02"
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Kode cabang wajib diisi."
+            data-validation-rule="Gunakan kode unik seperti BDG01 atau JKT02"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Kota</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Kota</label>
           <input
             type="text"
             bind:value={city}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-validation-rule="Opsional, isi kota utama cabang"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">No Telepon</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">No Telepon</label>
           <input
             type="tel"
             bind:value={phone}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-validation-rule="Opsional, gunakan nomor aktif cabang"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Alamat Lengkap</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Alamat Lengkap</label>
           <textarea
             bind:value={address}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            rows="3"
+            data-validation-rule="Opsional, isi alamat lengkap bila tersedia"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           ></textarea>
         </div>
 
@@ -287,14 +280,14 @@ Main Functions: CRUD cabang se-nasional secara interaktif dengan modal dan reloa
           <button
             type="button"
             onclick={() => (isAddModalOpen = false)}
-            class="w-1/2 rounded-xl border-2 border-black bg-slate-100 px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-slate-100 px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
           >
             Batal
           </button>
           <button
             type="submit"
             disabled={isLoading}
-            class="w-1/2 rounded-xl border-2 border-black bg-neo-green px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform disabled:opacity-50"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-neo-green px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
           >
             {isLoading ? 'Menyimpan...' : 'Simpan'}
           </button>
@@ -310,57 +303,57 @@ Main Functions: CRUD cabang se-nasional secara interaktif dengan modal dan reloa
     <div class="w-full max-w-md rounded-2xl border-4 border-black bg-white p-8 shadow-solid-lg">
       <h2 class="text-2xl font-black uppercase text-ink">Perbarui Cabang</h2>
       <p class="mt-1 text-xs font-bold text-ink/50">Ubah detail data dan status operasional cabang.</p>
-
-      {#if errorMsg}
-        <div class="mt-4 rounded-xl border-2 border-black bg-neo-red/20 p-3 text-xs font-bold text-black">
-          {errorMsg}
-        </div>
-      {/if}
-
-      <form onsubmit={handleUpdate} class="mt-6 space-y-4">
+      <form use:inlineValidationForm onsubmit={handleUpdate} class="mt-6 space-y-4">
         <div>
-          <label class="block text-xs font-black text-black uppercase">Nama Cabang</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Nama Cabang <span class="text-neo-red">*</span></label>
           <input
             type="text"
             required
             bind:value={name}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Nama cabang wajib diisi."
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Kode Cabang</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Kode Cabang <span class="text-neo-red">*</span></label>
           <input
             type="text"
             required
             bind:value={code}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-required-message="Kode cabang wajib diisi."
+            data-validation-rule="Gunakan kode unik seperti BDG01 atau JKT02"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Kota</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Kota</label>
           <input
             type="text"
             bind:value={city}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-validation-rule="Opsional, isi kota utama cabang"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">No Telepon</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">No Telepon</label>
           <input
             type="tel"
             bind:value={phone}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            data-validation-rule="Opsional, gunakan nomor aktif cabang"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-black text-black uppercase">Alamat Lengkap</label>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Alamat Lengkap</label>
           <textarea
             bind:value={address}
-            class="mt-1 w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+            rows="3"
+            data-validation-rule="Opsional, isi alamat lengkap bila tersedia"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           ></textarea>
         </div>
 
@@ -369,23 +362,23 @@ Main Functions: CRUD cabang se-nasional secara interaktif dengan modal dan reloa
             type="checkbox"
             id="checkbox-is-active"
             bind:checked={isActive}
-            class="h-5 w-5 rounded border-2 border-black accent-black focus:ring-0 cursor-pointer"
+            class="h-5 w-5 rounded border-[3px] border-black bg-white accent-black focus:ring-0 cursor-pointer shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
           />
-          <label for="checkbox-is-active" class="text-sm font-extrabold uppercase text-ink">Cabang Aktif</label>
+          <label for="checkbox-is-active" class="text-sm font-black uppercase text-ink select-none cursor-pointer">Cabang Aktif</label>
         </div>
 
         <div class="mt-8 flex gap-3">
           <button
             type="button"
             onclick={() => (isEditModalOpen = false)}
-            class="w-1/2 rounded-xl border-2 border-black bg-slate-100 px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-slate-100 px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
           >
             Batal
           </button>
           <button
             type="submit"
             disabled={isLoading}
-            class="w-1/2 rounded-xl border-2 border-black bg-neo-green px-4 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform disabled:opacity-50"
+            class="w-1/2 rounded-xl border-[3px] border-black bg-neo-green px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
           >
             {isLoading ? 'Menyimpan...' : 'Simpan'}
           </button>

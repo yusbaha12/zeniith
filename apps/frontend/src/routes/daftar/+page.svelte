@@ -1,9 +1,9 @@
 <!--
 Tujuan: Menyediakan halaman pendaftaran murid fase 1 dengan daftar cabang aktif dan validasi inline.
 Caller: Route publik `/daftar`.
-Dependensi: Auth store dan Branch API.
-Main Functions: Mengambil cabang aktif, memvalidasi form, dan mengirim registrasi user baru.
-Side Effects: Melakukan HTTP call ke backend untuk ambil cabang dan kirim pendaftaran.
+Dependensi: Auth store, Branch API, dan toast notification.
+Main Functions: Mengambil cabang aktif, memvalidasi form, mengirim registrasi user baru, dan kirim feedback via toast.
+Side Effects: Melakukan HTTP call ke backend untuk ambil cabang dan kirim pendaftaran, menampilkan toast, dan memicu redirect.
 -->
 
 <script lang="ts">
@@ -13,6 +13,8 @@ Side Effects: Melakukan HTTP call ke backend untuk ambil cabang dan kirim pendaf
   import { authStore } from '$lib/application/stores/auth.store.svelte'
   import type { FrontendBranch } from '$lib/domain/types/branch.types'
   import { branchApi } from '$lib/infrastructure/api/branch.api'
+  import { notify } from '$lib/infrastructure/notifications/notify'
+  import Select from '$lib/components/ui/Select.svelte'
 
   let branches = $state<FrontendBranch[]>([])
   let form = $state({
@@ -23,8 +25,12 @@ Side Effects: Melakukan HTTP call ke backend untuk ambil cabang dan kirim pendaf
     branchId: ''
   })
   let errors = $state<Record<string, string>>({})
-  let submitMessage = $state<string | null>(null)
-  let submitError = $state<string | null>(null)
+  let branchOptions = $derived(
+    branches.map(b => ({
+      value: b.id,
+      label: `${b.name}${b.city ? ` - ${b.city}` : ''}`
+    }))
+  )
 
   onMount(async () => {
     branches = await branchApi.list()
@@ -58,77 +64,106 @@ Side Effects: Melakukan HTTP call ke backend untuk ambil cabang dan kirim pendaf
   }
 
   const handleSubmit = async () => {
-    submitMessage = null
-    submitError = null
-
     if (!validate()) {
       return
     }
 
     try {
       await authStore.register(form)
-      submitMessage = 'Pendaftaran berhasil. Silakan login dengan akun baru Anda.'
+      notify.success('Pendaftaran berhasil. Silakan login dengan akun baru Anda.')
       setTimeout(() => {
         void goto('/login')
       }, 800)
     } catch (error) {
-      submitError = error instanceof Error ? error.message : 'Pendaftaran gagal diproses'
+      notify.error(error instanceof Error ? error.message : 'Pendaftaran gagal diproses')
     }
   }
 </script>
 
-<section class="mx-auto max-w-2xl rounded-xl border-4 border-black bg-white p-8 shadow-solid-lg">
-  <p class="text-xs font-extrabold uppercase tracking-[0.24em] text-neo-blue">Daftar Murid Baru</p>
-  <h1 class="mt-4 text-3xl font-extrabold uppercase text-black">Buat akun belajar Anda</h1>
-  <p class="mt-3 text-sm font-semibold leading-7 text-black">Lengkapi data berikut untuk bergabung dan mulai akses dashboard murid.</p>
+<section class="mx-auto max-w-2xl rounded-2xl border-4 border-black bg-white p-8 shadow-solid">
+  <div class="flex flex-wrap items-center gap-2 mb-2">
+    <span class="inline-block rounded-md border-2 border-black bg-neo-blue px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white shadow-solid-sm">
+      Daftar Murid Baru
+    </span>
+  </div>
+  <h1 class="text-3xl font-black uppercase tracking-tight text-black">Buat akun belajar Anda</h1>
+  <p class="mt-2 text-sm font-bold text-black/60">Lengkapi data berikut untuk bergabung dan mulai akses dashboard murid.</p>
 
-  <div class="mt-8 grid gap-5 md:grid-cols-2">
-    <label class="block">
-      <span class="mb-2 block text-sm font-extrabold uppercase text-black">Nama Lengkap</span>
-      <input bind:value={form.name} class={`w-full rounded-lg border-4 px-4 py-3 outline-none transition focus:border-neo-blue focus:shadow-solid-sm ${errors.name ? 'border-neo-red' : 'border-black'}`} />
-      {#if errors.name}<span class="mt-2 block text-sm font-bold text-neo-red">{errors.name}</span>{/if}
-    </label>
+  <div class="mt-8 grid gap-6 md:grid-cols-2">
+    <div>
+      <label class="block text-xs font-black text-black uppercase tracking-wider">Nama Lengkap</label>
+      <input
+        bind:value={form.name}
+        class={`mt-2 w-full rounded-xl border-[3px] px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5 ${errors.name ? 'border-neo-red' : 'border-black'}`}
+        placeholder="Nama lengkap Anda..."
+      />
+      {#if errors.name}
+        <span class="mt-2 block text-xs font-bold text-neo-red">{errors.name}</span>
+      {/if}
+    </div>
 
-    <label class="block">
-      <span class="mb-2 block text-sm font-extrabold uppercase text-black">Email</span>
-      <input type="email" bind:value={form.email} class={`w-full rounded-lg border-4 px-4 py-3 outline-none transition focus:border-neo-blue focus:shadow-solid-sm ${errors.email ? 'border-neo-red' : 'border-black'}`} />
-      {#if errors.email}<span class="mt-2 block text-sm font-bold text-neo-red">{errors.email}</span>{/if}
-    </label>
+    <div>
+      <label class="block text-xs font-black text-black uppercase tracking-wider">Email</label>
+      <input
+        type="email"
+        bind:value={form.email}
+        class={`mt-2 w-full rounded-xl border-[3px] px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5 ${errors.email ? 'border-neo-red' : 'border-black'}`}
+        placeholder="email@example.com"
+      />
+      {#if errors.email}
+        <span class="mt-2 block text-xs font-bold text-neo-red">{errors.email}</span>
+      {/if}
+    </div>
 
-    <label class="block">
-      <span class="mb-2 block text-sm font-extrabold uppercase text-black">Password</span>
-      <input type="password" bind:value={form.password} class={`w-full rounded-lg border-4 px-4 py-3 outline-none transition focus:border-neo-blue focus:shadow-solid-sm ${errors.password ? 'border-neo-red' : 'border-black'}`} />
-      {#if errors.password}<span class="mt-2 block text-sm font-bold text-neo-red">{errors.password}</span>{/if}
-    </label>
+    <div>
+      <label class="block text-xs font-black text-black uppercase tracking-wider">Password</label>
+      <input
+        type="password"
+        bind:value={form.password}
+        class={`mt-2 w-full rounded-xl border-[3px] px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5 ${errors.password ? 'border-neo-red' : 'border-black'}`}
+        placeholder="Minimal 8 karakter"
+      />
+      {#if errors.password}
+        <span class="mt-2 block text-xs font-bold text-neo-red">{errors.password}</span>
+      {/if}
+    </div>
 
-    <label class="block">
-      <span class="mb-2 block text-sm font-extrabold uppercase text-black">Nomor HP</span>
-      <input bind:value={form.phone} class={`w-full rounded-lg border-4 px-4 py-3 outline-none transition focus:border-neo-blue focus:shadow-solid-sm ${errors.phone ? 'border-neo-red' : 'border-black'}`} />
-      {#if errors.phone}<span class="mt-2 block text-sm font-bold text-neo-red">{errors.phone}</span>{/if}
-    </label>
+    <div>
+      <label class="block text-xs font-black text-black uppercase tracking-wider">Nomor HP</label>
+      <input
+        bind:value={form.phone}
+        class={`mt-2 w-full rounded-xl border-[3px] px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5 ${errors.phone ? 'border-neo-red' : 'border-black'}`}
+        placeholder="0812xxxxxxxx"
+      />
+      {#if errors.phone}
+        <span class="mt-2 block text-xs font-bold text-neo-red">{errors.phone}</span>
+      {/if}
+    </div>
 
-    <label class="block md:col-span-2">
-      <span class="mb-2 block text-sm font-extrabold uppercase text-black">Cabang Terdekat</span>
-      <select bind:value={form.branchId} class={`w-full rounded-lg border-4 px-4 py-3 outline-none transition focus:border-neo-blue focus:shadow-solid-sm ${errors.branchId ? 'border-neo-red' : 'border-black'}`}>
-        {#each branches as branch}
-          <option value={branch.id}>{branch.name} {branch.city ? `- ${branch.city}` : ''}</option>
-        {/each}
-      </select>
-      {#if errors.branchId}<span class="mt-2 block text-sm font-bold text-neo-red">{errors.branchId}</span>{/if}
-    </label>
+    <div class="md:col-span-2">
+      <label class="block text-xs font-black text-black uppercase tracking-wider">Cabang Terdekat</label>
+      <Select
+        options={branchOptions}
+        bind:value={form.branchId}
+        placeholder="Pilih Cabang"
+        searchable={true}
+        error={!!errors.branchId}
+        class="mt-2"
+      />
+      {#if errors.branchId}
+        <span class="mt-2 block text-xs font-bold text-neo-red">{errors.branchId}</span>
+      {/if}
+    </div>
   </div>
 
   <div class="mt-8 space-y-4">
-    <button type="button" class="w-full rounded-lg border-4 border-black bg-neo-yellow px-5 py-3 text-sm font-extrabold uppercase text-black shadow-solid-sm transition-transform active:translate-x-1 active:translate-y-1 active:shadow-none" onclick={handleSubmit} disabled={authStore.isLoading}>
+    <button
+      type="button"
+      class="w-full rounded-xl border-[3px] border-black bg-neo-yellow px-5 py-3 text-sm font-black text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50 disabled:pointer-events-none"
+      onclick={handleSubmit}
+      disabled={authStore.isLoading}
+    >
       {authStore.isLoading ? 'Memproses...' : 'Daftar Sekarang'}
     </button>
-
-    {#if submitMessage}
-      <p class="text-sm font-bold text-neo-green">{submitMessage}</p>
-    {/if}
-
-    {#if submitError}
-      <p class="text-sm font-bold text-neo-red">{submitError}</p>
-    {/if}
   </div>
 </section>

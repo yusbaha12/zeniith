@@ -3,10 +3,12 @@ Tujuan: Menyediakan halaman kelola murid cabang untuk admin cabang.
 Caller: Route `/admin/murid`.
 Dependensi: Svelte 5 Runes, SvelteKit data, dan fetch API client.
 Main Functions: CRUD murid lokal cabang secara interaktif dengan modal dan reload state.
+Side Effects: Melakukan HTTP call CRUD murid, memicu reload data, dan menampilkan hint validasi inline pada form modal.
 -->
 
 <script lang="ts">
   import { invalidateAll } from '$app/navigation'
+  import { inlineValidationForm } from '$lib/actions/inline-validation-form'
   import { page } from '$app/state'
 
   let { data } = $props()
@@ -287,33 +289,38 @@ Main Functions: CRUD murid lokal cabang secara interaktif dengan modal dan reloa
         </div>
       {/if}
 
-      <form onsubmit={handleCreate} class="mt-6 space-y-4">
+      <form use:inlineValidationForm onsubmit={handleCreate} class="mt-6 space-y-4">
         <div>
-          <label class="block text-xs font-extrabold uppercase text-black">Nama Lengkap</label>
+          <label class="block text-xs font-extrabold uppercase text-black">Nama Lengkap <span class="text-neo-red">*</span></label>
           <input
             type="text"
             required
             bind:value={name}
+            data-required-message="Nama lengkap murid wajib diisi."
             class="mt-1 w-full rounded-lg border-4 border-black px-4 py-3 text-sm font-bold outline-none transition focus:border-neo-blue focus:shadow-solid-sm"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-extrabold uppercase text-black">Email</label>
+          <label class="block text-xs font-extrabold uppercase text-black">Email <span class="text-neo-red">*</span></label>
           <input
             type="email"
             required
             bind:value={email}
+            data-required-message="Email murid wajib diisi."
             class="mt-1 w-full rounded-lg border-4 border-black px-4 py-3 text-sm font-bold outline-none transition focus:border-neo-blue focus:shadow-solid-sm"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-extrabold uppercase text-black">Password</label>
+          <label class="block text-xs font-extrabold uppercase text-black">Password <span class="text-neo-red">*</span></label>
           <input
             type="password"
             required
+            minlength="6"
             bind:value={password}
+            data-required-message="Password murid wajib diisi."
+            data-minlength-message="Password murid minimal 6 karakter."
             class="mt-1 w-full rounded-lg border-4 border-black px-4 py-3 text-sm font-bold outline-none transition focus:border-neo-blue focus:shadow-solid-sm"
           />
         </div>
@@ -323,6 +330,7 @@ Main Functions: CRUD murid lokal cabang secara interaktif dengan modal dan reloa
           <input
             type="tel"
             bind:value={phone}
+            data-validation-rule="Jika diisi, gunakan minimal 10 digit"
             class="mt-1 w-full rounded-lg border-4 border-black px-4 py-3 text-sm font-bold outline-none transition focus:border-neo-blue focus:shadow-solid-sm"
           />
         </div>
@@ -361,23 +369,25 @@ Main Functions: CRUD murid lokal cabang secara interaktif dengan modal dan reloa
         </div>
       {/if}
 
-      <form onsubmit={handleUpdate} class="mt-6 space-y-4">
+      <form use:inlineValidationForm onsubmit={handleUpdate} class="mt-6 space-y-4">
         <div>
-          <label class="block text-xs font-extrabold uppercase text-black">Nama Lengkap</label>
+          <label class="block text-xs font-extrabold uppercase text-black">Nama Lengkap <span class="text-neo-red">*</span></label>
           <input
             type="text"
             required
             bind:value={name}
+            data-required-message="Nama lengkap murid wajib diisi."
             class="mt-1 w-full rounded-lg border-4 border-black px-4 py-3 text-sm font-bold outline-none transition focus:border-neo-blue focus:shadow-solid-sm"
           />
         </div>
 
         <div>
-          <label class="block text-xs font-extrabold uppercase text-black">Email</label>
+          <label class="block text-xs font-extrabold uppercase text-black">Email <span class="text-neo-red">*</span></label>
           <input
             type="email"
             required
             bind:value={email}
+            data-required-message="Email murid wajib diisi."
             class="mt-1 w-full rounded-lg border-4 border-black px-4 py-3 text-sm font-bold outline-none transition focus:border-neo-blue focus:shadow-solid-sm"
           />
         </div>
@@ -386,8 +396,11 @@ Main Functions: CRUD murid lokal cabang secara interaktif dengan modal dan reloa
           <label class="block text-xs font-extrabold uppercase text-black">Password Baru (Opsional)</label>
           <input
             type="password"
+            minlength="6"
             bind:value={password}
             placeholder="Biarkan kosong jika tidak diganti"
+            data-validation-rule="Kosongkan jika password tidak diubah"
+            data-minlength-message="Password baru minimal 6 karakter."
             class="mt-1 w-full rounded-lg border-4 border-black px-4 py-3 text-sm font-bold outline-none transition focus:border-neo-blue focus:shadow-solid-sm"
           />
         </div>
@@ -397,6 +410,7 @@ Main Functions: CRUD murid lokal cabang secara interaktif dengan modal dan reloa
           <input
             type="tel"
             bind:value={phone}
+            data-validation-rule="Jika diisi, gunakan minimal 10 digit"
             class="mt-1 w-full rounded-lg border-4 border-black px-4 py-3 text-sm font-bold outline-none transition focus:border-neo-blue focus:shadow-solid-sm"
           />
         </div>

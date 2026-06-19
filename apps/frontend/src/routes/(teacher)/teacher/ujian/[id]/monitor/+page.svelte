@@ -1,15 +1,16 @@
 <!--
 Tujuan: Menyediakan halaman monitor live proctoring ujian untuk pengawas/guru fase 6.
 Caller: Route `/teacher/ujian/[id]/monitor`.
-Dependensi: Exam API, WebSocket client, shared WS events, dan Tailwind CSS.
-Main Functions: Menampilkan status realtime pengerjaan peserta ujian, log kecurangan, memberi warning manual, dan force terminate.
-Side Effects: Melakukan koneksi WebSocket, HTTP get proctor data/log, HTTP post warn/terminate.
+Dependensi: Exam API, WebSocket client, shared WS events, Tailwind CSS, dan toast notification.
+Main Functions: Menampilkan status realtime pengerjaan peserta ujian, log kecurangan, memberi warning manual, force terminate, dan mengirim feedback via toast.
+Side Effects: Melakukan koneksi WebSocket, HTTP get proctor data/log, HTTP post warn/terminate, dan menampilkan toast notification.
 -->
 
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
   import { CLIENT_EVENTS, SERVER_EVENTS } from '@lms-bimbel/shared'
   import { examApi } from '$lib/infrastructure/api/exam.api'
+  import { notify } from '$lib/infrastructure/notifications/notify'
   import { wsClient } from '$lib/infrastructure/websocket/ws.client'
 
   let { data } = $props<{ data: { examId: string } }>()
@@ -72,12 +73,13 @@ Side Effects: Melakukan koneksi WebSocket, HTTP get proctor data/log, HTTP post 
 
     try {
       await examApi.terminateSession(sessionId)
+      notify.success('Sesi ujian murid berhasil dihentikan.')
       // Update local state status to TERMINATED
       participants = participants.map((p) =>
         p.sessionId === sessionId ? { ...p, status: 'TERMINATED' } : p
       )
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Gagal menghentikan sesi')
+      notify.error(err instanceof Error ? err.message : 'Gagal menghentikan sesi')
     }
   }
 
@@ -103,8 +105,9 @@ Side Effects: Melakukan koneksi WebSocket, HTTP get proctor data/log, HTTP post 
           ? { ...p, warningCount: p.warningCount + 1 }
           : p
       )
+      notify.success('Peringatan berhasil dikirim ke murid.')
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Gagal mengirim peringatan')
+      notify.error(err instanceof Error ? err.message : 'Gagal mengirim peringatan')
     }
   }
 
@@ -117,7 +120,7 @@ Side Effects: Melakukan koneksi WebSocket, HTTP get proctor data/log, HTTP post 
     try {
       proctorLogs = await examApi.getProctorLog(participant.sessionId)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Gagal memuat log proctoring')
+      notify.error(err instanceof Error ? err.message : 'Gagal memuat log proctoring')
     } finally {
       isLoadingLogs = false
     }

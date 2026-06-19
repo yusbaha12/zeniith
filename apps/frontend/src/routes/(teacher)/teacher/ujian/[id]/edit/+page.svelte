@@ -186,7 +186,7 @@ Side Effects: Melakukan HTTP call ke backend detail ujian, create question, dan 
       </div>
 
       <div class="mt-6 border-t-2 border-black/10 pt-4">
-        <a href="/teacher/ujian" class="inline-flex items-center gap-1.5 rounded-lg border-2 border-black bg-white px-3.5 py-1.5 text-xs font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform">
+        <a href="/teacher/ujian" class="inline-flex items-center gap-1.5 rounded-lg border-[3px] border-black bg-white px-3.5 py-1.5 text-xs font-black uppercase text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all">
           &larr; Kembali ke Daftar Ujian
         </a>
       </div>
@@ -196,13 +196,13 @@ Side Effects: Melakukan HTTP call ke backend detail ujian, create question, dan 
       <aside class="rounded-2xl border-4 border-black bg-white p-6 shadow-solid-md space-y-4">
         <div class="flex items-center justify-between gap-3">
           <p class="text-sm font-bold uppercase tracking-[0.22em] text-ink/50">Daftar Soal</p>
-          <button type="button" class="rounded-xl border-2 border-black bg-black px-4 py-2 text-xs font-black uppercase text-neo-yellow shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform" onclick={() => hydrateQuestion(null)}>Soal Baru</button>
+          <button type="button" class="rounded-xl border-[3px] border-black bg-black px-4 py-2 text-xs font-black uppercase text-neo-yellow shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all" onclick={() => hydrateQuestion(null)}>Soal Baru</button>
         </div>
 
         {#each payload.questions as question, index}
           <button 
             type="button" 
-            class={`block w-full rounded-xl p-4 text-left transition-all border-2 border-black ${selectedQuestionId === question.id ? 'bg-black text-white shadow-none translate-x-0.5 translate-y-0.5' : 'bg-white text-ink shadow-solid-sm hover:-translate-y-0.5'}`} 
+            class={`block w-full rounded-xl p-4 text-left transition-all border-[3px] border-black ${selectedQuestionId === question.id ? 'bg-black text-white shadow-none translate-x-[1px] translate-y-[1px]' : 'bg-white text-ink shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]'}`} 
             onclick={() => hydrateQuestion(question.id)}
           >
             <p class="text-sm font-black uppercase tracking-wider">Soal {index + 1}</p>
@@ -218,21 +218,21 @@ Side Effects: Melakukan HTTP call ke backend detail ujian, create question, dan 
           <div class="flex items-center gap-2 border-b-4 border-black pb-4 mb-4">
             <button 
               type="button" 
-              class={`flex-1 rounded-xl border-2 border-black px-4 py-3 text-sm font-bold transition-transform ${activeStep === 1 ? 'bg-neo-yellow text-black shadow-solid-sm translate-x-1 -translate-y-1' : 'bg-white text-ink/70 hover:bg-lavender/10'}`}
+              class={`flex-1 rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black transition-all ${activeStep === 1 ? 'bg-neo-yellow text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] -translate-x-[1px] -translate-y-[1px]' : 'bg-white text-ink/70 hover:-translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] hover:bg-lavender/10'}`}
               onclick={() => activeStep = 1}
             >
               Langkah 1: Soal
             </button>
             <button 
               type="button" 
-              class={`flex-1 rounded-xl border-2 border-black px-4 py-3 text-sm font-bold transition-transform ${activeStep === 2 ? 'bg-neo-yellow text-black shadow-solid-sm translate-x-1 -translate-y-1' : 'bg-white text-ink/70 hover:bg-lavender/10'}`}
+              class={`flex-1 rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black transition-all ${activeStep === 2 ? 'bg-neo-yellow text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] -translate-x-[1px] -translate-y-[1px]' : 'bg-white text-ink/70 hover:-translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] hover:bg-lavender/10'}`}
               onclick={() => activeStep = 2}
             >
               Langkah 2: Opsi
             </button>
             <button 
               type="button" 
-              class={`flex-1 rounded-xl border-2 border-black px-4 py-3 text-sm font-bold transition-transform ${activeStep === 3 ? 'bg-neo-yellow text-black shadow-solid-sm translate-x-1 -translate-y-1' : 'bg-white text-ink/70 hover:bg-lavender/10'}`}
+              class={`flex-1 rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black transition-all ${activeStep === 3 ? 'bg-neo-yellow text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] -translate-x-[1px] -translate-y-[1px]' : 'bg-white text-ink/70 hover:-translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] hover:bg-lavender/10'}`}
               onclick={() => activeStep = 3}
             >
               Langkah 3: Pembahasan
@@ -250,16 +250,28 @@ Side Effects: Melakukan HTTP call ke backend detail ujian, create question, dan 
               </div>
               <div class="grid gap-4 md:grid-cols-2">
                 <label class="block">
-                  <span class="mb-2 block text-sm font-semibold text-ink">Bobot Poin</span>
-                  <input type="number" bind:value={form.score} class="w-full rounded-2xl border-2 border-black px-4 py-3 font-bold outline-none focus:ring-4 focus:ring-neo-yellow/30 transition-shadow" />
+                  <span class="mb-2 block text-xs font-black text-black uppercase tracking-wider">Bobot Poin</span>
+                  <input
+                    type="number"
+                    bind:value={form.score}
+                    class="w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+                  />
                 </label>
                 <label class="block">
-                  <span class="mb-2 block text-sm font-semibold text-ink">Urutan Tampil</span>
-                  <input type="number" bind:value={form.sortOrder} class="w-full rounded-2xl border-2 border-black px-4 py-3 font-bold outline-none focus:ring-4 focus:ring-neo-yellow/30 transition-shadow" />
+                  <span class="mb-2 block text-xs font-black text-black uppercase tracking-wider">Urutan Tampil</span>
+                  <input
+                    type="number"
+                    bind:value={form.sortOrder}
+                    class="w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+                  />
                 </label>
               </div>
               <div class="flex justify-end pt-2">
-                <button type="button" class="rounded-xl border-2 border-black bg-neo-green px-6 py-3 text-sm font-bold text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform" onclick={() => activeStep = 2}>
+                <button
+                  type="button"
+                  class="rounded-xl border-[3px] border-black bg-neo-green px-6 py-3 text-sm font-black text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+                  onclick={() => activeStep = 2}
+                >
                   Lanjut ke Opsi Jawaban &rarr;
                 </button>
               </div>
@@ -267,11 +279,11 @@ Side Effects: Melakukan HTTP call ke backend detail ujian, create question, dan 
           {:else if activeStep === 2}
             <div class="space-y-5 animate-in fade-in zoom-in-95 duration-200">
               <div class="flex items-center justify-between gap-3 mb-2">
-                <p class="text-sm font-bold uppercase tracking-[0.22em] text-ink/50">Opsi Jawaban ({form.options.length})</p>
+                <p class="text-sm font-black uppercase tracking-[0.22em] text-ink/50">Opsi Jawaban ({form.options.length})</p>
                 <div class="flex gap-2">
                   <button 
                     type="button" 
-                    class="rounded-lg border-2 border-black bg-neo-red px-2.5 py-1 text-xs font-bold text-white shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform disabled:opacity-40" 
+                    class="rounded-lg border-[3px] border-black bg-neo-red px-2.5 py-1 text-xs font-black uppercase text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-40" 
                     onclick={removeOption} 
                     disabled={form.options.length <= 2}
                   >
@@ -279,7 +291,7 @@ Side Effects: Melakukan HTTP call ke backend detail ujian, create question, dan 
                   </button>
                   <button 
                     type="button" 
-                    class="rounded-lg border-2 border-black bg-neo-green px-2.5 py-1 text-xs font-bold text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform" 
+                    class="rounded-lg border-[3px] border-black bg-neo-green px-2.5 py-1 text-xs font-black uppercase text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all" 
                     onclick={addOption}
                   >
                     Tambah Opsi
@@ -287,25 +299,29 @@ Side Effects: Melakukan HTTP call ke backend detail ujian, create question, dan 
                 </div>
               </div>
               
-              <div class="rounded-xl border-2 border-black bg-neo-yellow/10 p-3 text-xs font-bold text-black shadow-solid-sm space-y-1 mb-2">
+              <div class="rounded-xl border-[3px] border-black bg-neo-yellow/10 p-3 text-xs font-black text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] space-y-1 mb-2">
                 <p class="font-extrabold uppercase">💡 Petunjuk Rumus (LaTeX):</p>
                 <p>Gunakan delimiter <code class="bg-white/60 px-1 rounded">\( ... \)</code> untuk rumus dalam baris (inline).</p>
                 <p>Gunakan <code class="bg-white/60 px-1 rounded">$$ ... $$</code> untuk baris baru (block).</p>
               </div>
-
+ 
               <div class="grid gap-4">
                 {#each form.options as option, index}
-                  <div class={`rounded-2xl border-4 p-4 transition-colors ${option.isCorrect ? 'border-neo-green bg-neo-green/10' : 'border-black bg-white'}`}>
+                  <div class={`rounded-2xl border-[3px] p-4 transition-colors ${option.isCorrect ? 'border-neo-green bg-neo-green/10 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'border-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'}`}>
                     <div class="flex items-center gap-3">
-                      <span class={`inline-flex h-8 w-8 items-center justify-center rounded-lg border-2 border-black font-extrabold ${option.isCorrect ? 'bg-neo-green text-black' : 'bg-slate-200 text-black'}`}>{option.optionKey}</span>
-                      <input bind:value={option.text} class="flex-1 rounded-xl border-2 border-black px-4 py-2 font-bold outline-none focus:ring-4 focus:ring-neo-yellow/30 transition-shadow" placeholder={`Isi opsi ${option.optionKey}`} />
-                      <label class="flex items-center gap-2 text-sm font-black cursor-pointer">
+                      <span class={`inline-flex h-8 w-8 items-center justify-center rounded-lg border-[2px] border-black font-extrabold ${option.isCorrect ? 'bg-neo-green text-black' : 'bg-slate-200 text-black'}`}>{option.optionKey}</span>
+                      <input
+                        bind:value={option.text}
+                        class="flex-1 rounded-xl border-[3px] border-black px-4 py-2.5 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+                        placeholder={`Isi opsi ${option.optionKey}`}
+                      />
+                      <label class="flex items-center gap-2 text-sm font-black cursor-pointer select-none">
                         <input type="radio" name="correct-option" checked={option.isCorrect} onchange={() => {
                           form.options = form.options.map((item, innerIndex) => ({
                             ...item,
                             isCorrect: innerIndex === index
                           }))
-                        }} class="w-5 h-5 accent-neo-green" />
+                        }} class="w-5 h-5 rounded-full border-[3px] border-black bg-white accent-neo-green cursor-pointer shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all focus:ring-0" />
                         BENAR
                       </label>
                     </div>
@@ -313,10 +329,18 @@ Side Effects: Melakukan HTTP call ke backend detail ujian, create question, dan 
                 {/each}
               </div>
               <div class="flex justify-between pt-2">
-                <button type="button" class="rounded-xl border-2 border-black bg-white px-6 py-3 text-sm font-bold text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform" onclick={() => activeStep = 1}>
+                <button
+                  type="button"
+                  class="rounded-xl border-[3px] border-black bg-white px-6 py-3 text-sm font-black text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+                  onclick={() => activeStep = 1}
+                >
                   &larr; Kembali
                 </button>
-                <button type="button" class="rounded-xl border-2 border-black bg-neo-green px-6 py-3 text-sm font-bold text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform" onclick={() => activeStep = 3}>
+                <button
+                  type="button"
+                  class="rounded-xl border-[3px] border-black bg-neo-green px-6 py-3 text-sm font-black text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+                  onclick={() => activeStep = 3}
+                >
                   Lanjut ke Pembahasan &rarr;
                 </button>
               </div>
@@ -324,20 +348,29 @@ Side Effects: Melakukan HTTP call ke backend detail ujian, create question, dan 
           {:else if activeStep === 3}
             <div class="space-y-5 animate-in fade-in zoom-in-95 duration-200">
               <div>
-                <p class="text-sm font-bold uppercase tracking-[0.22em] text-ink/50">Pembahasan Soal</p>
+                <p class="text-sm font-black uppercase tracking-[0.22em] text-ink/50">Pembahasan Soal</p>
                 <div class="mt-3">
                   <MaterialRichEditor content={explanationContent} onChange={(value) => (explanationContent = value)} />
                 </div>
               </div>
-              <div class="flex justify-between pt-2 border-t-4 border-black mt-6">
-                <button type="button" class="rounded-xl border-2 border-black bg-white px-6 py-3 text-sm font-bold text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform mt-4" onclick={() => activeStep = 2}>
+              <div class="flex justify-between pt-2 border-t-[3px] border-black mt-6">
+                <button
+                  type="button"
+                  class="rounded-xl border-[3px] border-black bg-white px-6 py-3 text-sm font-black text-black uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all mt-4"
+                  onclick={() => activeStep = 2}
+                >
                   &larr; Kembali
                 </button>
                 <div class="flex gap-3 mt-4">
                   {#if formError}
-                    <p class="text-sm font-medium text-red-600 self-center mr-3">{formError}</p>
+                    <p class="text-sm font-black text-red-600 self-center mr-3">{formError}</p>
                   {/if}
-                  <button type="button" class="rounded-xl border-2 border-black bg-black px-8 py-3 text-sm font-extrabold text-neo-yellow shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform disabled:opacity-50" onclick={saveQuestion} disabled={isSaving}>
+                  <button
+                    type="button"
+                    class="rounded-xl border-[3px] border-black bg-black px-8 py-3 text-sm font-black text-neo-yellow uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
+                    onclick={saveQuestion}
+                    disabled={isSaving}
+                  >
                     {isSaving ? 'Menyimpan...' : selectedQuestionId ? 'Simpan Perubahan' : 'Tambah Soal'}
                   </button>
                 </div>
@@ -347,8 +380,8 @@ Side Effects: Melakukan HTTP call ke backend detail ujian, create question, dan 
         </div>
 
         <!-- Bottom Panel: Live Preview -->
-        <div class="rounded-[2rem] border-4 border-black bg-neo-yellow/20 p-6 shadow-solid-lg">
-          <p class="text-xs font-bold uppercase tracking-[0.22em] text-black/60 mb-4 flex items-center gap-2">
+        <div class="rounded-[2rem] border-[4px] border-black bg-neo-yellow/20 p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <p class="text-xs font-black uppercase tracking-[0.22em] text-black/60 mb-4 flex items-center gap-2">
             <span class="relative flex h-3 w-3">
               <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-neo-red opacity-75"></span>
               <span class="relative inline-flex rounded-full h-3 w-3 bg-neo-red"></span>
@@ -356,8 +389,8 @@ Side Effects: Melakukan HTTP call ke backend detail ujian, create question, dan 
             Live Preview (Tampilan Siswa)
           </p>
           
-          <div class="rounded-2xl border-4 border-black bg-white p-6 shadow-solid-sm">
-            <div class="text-black font-medium leading-relaxed">
+          <div class="rounded-2xl border-[3px] border-black bg-white p-6 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+            <div class="text-black font-medium leading-relaxed font-black">
               {#if questionContent && Array.isArray(questionContent.content) && questionContent.content.length > 0}
                 <MaterialRichEditor content={questionContent} editable={false} flat={true} />
               {:else}
@@ -368,13 +401,13 @@ Side Effects: Melakukan HTTP call ke backend detail ujian, create question, dan 
             <!-- Render Options -->
             <div class="mt-3 grid gap-2.5">
               {#each form.options as option}
-                <div class={`flex w-full items-start gap-3 rounded-xl border-4 px-4 py-4 text-left text-sm font-bold ${option.isCorrect ? 'border-neo-green bg-neo-green/10' : 'border-black bg-white'}`}>
-                  <span class={`mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-md border-2 border-black font-extrabold uppercase shadow-solid-sm ${option.isCorrect ? 'bg-neo-green text-black' : 'bg-white text-black'}`}>{option.optionKey}</span>
-                  <span class="leading-7 text-black">
+                <div class={`flex w-full items-start gap-3 rounded-xl border-[3px] px-4 py-4 text-left text-sm font-black ${option.isCorrect ? 'border-neo-green bg-neo-green/10' : 'border-black bg-white'}`}>
+                  <span class={`mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-md border-[2px] border-black font-extrabold uppercase shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] ${option.isCorrect ? 'bg-neo-green text-black' : 'bg-white text-black'}`}>{option.optionKey}</span>
+                  <span class="leading-7 text-black font-black">
                     {#if option.text}
                       <span use:math={option.text}></span>
                     {:else}
-                      <span class="text-black/30 italic">Opsi kosong</span>
+                      <span class="text-black/30 italic font-bold">Opsi kosong</span>
                     {/if}
                   </span>
                 </div>
@@ -383,9 +416,9 @@ Side Effects: Melakukan HTTP call ke backend detail ujian, create question, dan 
 
             <!-- Render Explanation (Visible in Preview) -->
             {#if activeStep === 3}
-              <div class="mt-8 rounded-xl border-4 border-black bg-neo-cyan/10 p-5">
-                <p class="text-xs font-extrabold uppercase text-black mb-3">Preview Pembahasan:</p>
-                <div class="text-black">
+              <div class="mt-8 rounded-xl border-[3px] border-black bg-neo-cyan/10 p-5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <p class="text-xs font-black uppercase text-black mb-3">Preview Pembahasan:</p>
+                <div class="text-black font-black">
                   {#if explanationContent && Array.isArray(explanationContent.content) && explanationContent.content.length > 0}
                     <MaterialRichEditor content={explanationContent} editable={false} flat={true} />
                   {:else}

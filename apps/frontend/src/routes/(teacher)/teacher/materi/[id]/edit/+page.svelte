@@ -1,9 +1,9 @@
 <!--
 Tujuan: Menyediakan halaman edit materi guru fase 3 dengan editor Tiptap.
 Caller: Route `/teacher/materi/[id]/edit`.
-Dependensi: Material API, subject/module API, dan komponen MaterialRichEditor.
-Main Functions: Memuat detail materi, mengubah konten/form metadata, lalu menyimpan pembaruan materi.
-Side Effects: Melakukan HTTP call ke backend untuk detail materi, list modul, upload image, dan update materi.
+Dependensi: Material API, subject/module API, komponen MaterialRichEditor, dan toast notification.
+Main Functions: Memuat detail materi, mengubah konten/form metadata, menyimpan pembaruan materi, dan mengirim feedback via toast.
+Side Effects: Melakukan HTTP call ke backend untuk detail materi, list modul, upload image, update materi, menampilkan toast, dan memicu redirect.
 -->
 
 <script lang="ts">
@@ -13,6 +13,8 @@ Side Effects: Melakukan HTTP call ke backend untuk detail materi, list modul, up
   import MaterialRichEditor from '$lib/components/editor/MaterialRichEditor.svelte'
   import type { FrontendModule, FrontendSubject, TeacherMaterialDetail } from '$lib/domain/types/material.types'
   import { materialApi } from '$lib/infrastructure/api/material.api'
+  import { notify } from '$lib/infrastructure/notifications/notify'
+  import Select from '$lib/components/ui/Select.svelte'
 
   let { data } = $props<{ data: { materialId: string } }>()
 
@@ -20,7 +22,6 @@ Side Effects: Melakukan HTTP call ke backend untuk detail materi, list modul, up
   let modules = $state<FrontendModule[]>([])
   let material = $state<TeacherMaterialDetail | null>(null)
   let contentJson = $state<Record<string, unknown> | null>(null)
-  let submitError = $state<string | null>(null)
   let isSubmitting = $state(false)
   let attachmentFile = $state<File | null>(null)
   let form = $state({
@@ -34,9 +35,27 @@ Side Effects: Melakukan HTTP call ke backend untuk detail materi, list modul, up
     isPublished: true
   })
 
+  // Derived options for Select components
+  let subjectOptions = $derived(
+    subjects.map(s => ({ value: s.id, label: s.name }))
+  )
+
+  let moduleOptions = $derived(
+    modules.map(m => ({ value: m.id, label: m.title }))
+  )
+
+  const materialTypeOptions = [
+    { value: 'TEXT', label: 'Teks' },
+    { value: 'EXERCISE', label: 'Latihan' },
+    { value: 'PDF', label: 'PDF' },
+    { value: 'VIDEO', label: 'Video' }
+  ]
+
   const loadModules = async (subjectId: string) => {
     modules = await materialApi.listModules(subjectId)
   }
+
+  let isInitialLoad = $state(true)
 
   onMount(async () => {
     const [subjectsResult, materialResult] = await Promise.all([
@@ -56,6 +75,17 @@ Side Effects: Melakukan HTTP call ke backend untuk detail materi, list modul, up
     form.sortOrder = String(material.sortOrder)
     form.isPublished = material.isPublished
     contentJson = material.contentJson
+    
+    // Allow reactivity to change modules on subsequent changes
+    isInitialLoad = false
+  })
+
+  $effect(() => {
+    if (form.subjectId && !isInitialLoad) {
+      loadModules(form.subjectId).then(() => {
+        form.moduleId = modules[0]?.id ?? ''
+      })
+    }
   })
 
   const uploadImage = async (file: File) => {
@@ -69,7 +99,6 @@ Side Effects: Melakukan HTTP call ke backend untuk detail materi, list modul, up
       return
     }
 
-    submitError = null
     isSubmitting = true
 
     try {
@@ -87,9 +116,10 @@ Side Effects: Melakukan HTTP call ke backend untuk detail materi, list modul, up
       }
 
       await materialApi.updateTeacherMaterial(material.id, payload)
+      notify.success('Materi berhasil diperbarui.')
       await goto('/teacher/materi')
     } catch (error) {
-      submitError = error instanceof Error ? error.message : 'Materi gagal diperbarui'
+      notify.error(error instanceof Error ? error.message : 'Materi gagal diperbarui')
     } finally {
       isSubmitting = false
     }
@@ -128,75 +158,109 @@ Side Effects: Melakukan HTTP call ke backend untuk detail materi, list modul, up
 
     <div class="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
       <aside class="space-y-5 rounded-2xl border-4 border-black bg-white p-6 shadow-solid">
-        <label class="block">
-          <span class="mb-2 block text-sm font-black uppercase text-ink">Mata Pelajaran</span>
-          <select bind:value={form.subjectId} class="w-full rounded-xl border-2 border-black bg-white px-4 py-3 text-sm font-bold outline-none focus:bg-neo-yellow/5 focus:ring-0" onchange={async () => await loadModules(form.subjectId)}>
-            {#each subjects as subject}
-              <option value={subject.id}>{subject.name}</option>
-            {/each}
-          </select>
-        </label>
-
-        <label class="block">
-          <span class="mb-2 block text-sm font-black uppercase text-ink">Modul</span>
-          <select bind:value={form.moduleId} class="w-full rounded-xl border-2 border-black bg-white px-4 py-3 text-sm font-bold outline-none focus:bg-neo-yellow/5 focus:ring-0" disabled>
-            {#each modules as moduleItem}
-              <option value={moduleItem.id}>{moduleItem.title}</option>
-            {/each}
-          </select>
-        </label>
-
-        <label class="block">
-          <span class="mb-2 block text-sm font-black uppercase text-ink">Judul</span>
-          <input bind:value={form.title} class="w-full rounded-xl border-2 border-black bg-white px-4 py-3 text-sm font-bold outline-none focus:bg-neo-yellow/5 focus:ring-0" placeholder="Masukkan judul materi..." />
-        </label>
-
-        <label class="block">
-          <span class="mb-2 block text-sm font-black uppercase text-ink">Ringkasan</span>
-          <textarea bind:value={form.summary} rows="4" class="w-full rounded-xl border-2 border-black bg-white px-4 py-3 text-sm font-bold outline-none focus:bg-neo-yellow/5 focus:ring-0" placeholder="Ringkasan singkat materi..."></textarea>
-        </label>
-
-        <label class="block">
-          <span class="mb-2 block text-sm font-black uppercase text-ink">Tipe Materi</span>
-          <select bind:value={form.materialType} class="w-full rounded-xl border-2 border-black bg-white px-4 py-3 text-sm font-bold outline-none focus:bg-neo-yellow/5 focus:ring-0">
-            <option value="TEXT">Teks</option>
-            <option value="EXERCISE">Latihan</option>
-            <option value="PDF">PDF</option>
-            <option value="VIDEO">Video</option>
-          </select>
-        </label>
-
-        <label class="block">
-          <span class="mb-2 block text-sm font-black uppercase text-ink">Attachment baru (opsional)</span>
-          <input type="file" accept="application/pdf,video/mp4,video/webm" class="w-full rounded-xl border-2 border-black bg-white px-4 py-3 text-sm font-bold outline-none focus:bg-neo-yellow/5 focus:ring-0" onchange={(event) => {
-            const target = event.currentTarget as HTMLInputElement
-            attachmentFile = target.files?.[0] ?? null
-          }} />
-        </label>
-
-        <div class="grid gap-4 md:grid-cols-2">
-          <label class="block">
-            <span class="mb-2 block text-sm font-black uppercase text-ink">Durasi (menit)</span>
-            <input bind:value={form.estimatedDurationMinutes} class="w-full rounded-xl border-2 border-black bg-white px-4 py-3 text-sm font-bold outline-none focus:bg-neo-yellow/5 focus:ring-0" />
-          </label>
-          <label class="block">
-            <span class="mb-2 block text-sm font-black uppercase text-ink">Urutan</span>
-            <input bind:value={form.sortOrder} class="w-full rounded-xl border-2 border-black bg-white px-4 py-3 text-sm font-bold outline-none focus:bg-neo-yellow/5 focus:ring-0" />
-          </label>
+        <div>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Mata Pelajaran</label>
+          <Select
+            options={subjectOptions}
+            bind:value={form.subjectId}
+            placeholder="Pilih Mata Pelajaran"
+            searchable={true}
+            class="mt-2"
+          />
         </div>
 
-        <label class="flex items-center gap-3 text-sm font-bold text-ink cursor-pointer">
-          <input type="checkbox" bind:checked={form.isPublished} class="h-4 w-4 rounded border-2 border-black text-neo-blue focus:ring-0" />
-          Publish materi
-        </label>
+        <div>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Modul</label>
+          <Select
+            options={moduleOptions}
+            bind:value={form.moduleId}
+            placeholder="Pilih Modul"
+            searchable={true}
+            disabled={true}
+            class="mt-2"
+          />
+        </div>
 
-        <button type="button" class="w-full rounded-xl border-2 border-black bg-neo-green px-5 py-3 text-sm font-extrabold uppercase text-black shadow-solid hover:-translate-y-0.5 active:translate-y-0 transition-transform" onclick={handleSubmit} disabled={isSubmitting}>
-          {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
-        </button>
+        <div>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Judul</label>
+          <input
+            bind:value={form.title}
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Masukkan judul materi..."
+          />
+        </div>
 
-        {#if submitError}
-          <p class="text-sm font-bold text-neo-red">{submitError}</p>
-        {/if}
+        <div>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Ringkasan</label>
+          <textarea
+            bind:value={form.summary}
+            rows="4"
+            class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            placeholder="Ringkasan singkat materi..."
+          ></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Tipe Materi</label>
+          <Select
+            options={materialTypeOptions}
+            bind:value={form.materialType}
+            placeholder="Pilih Tipe Materi"
+            searchable={false}
+            class="mt-2"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-black text-black uppercase tracking-wider">Attachment baru (opsional)</label>
+          <input
+            type="file"
+            accept="application/pdf,video/mp4,video/webm"
+            class="mt-2 w-full rounded-xl border-[3px] border-black bg-white px-4 py-3 text-sm font-black text-black outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            onchange={(event) => {
+              const target = event.currentTarget as HTMLInputElement
+              attachmentFile = target.files?.[0] ?? null
+            }}
+          />
+        </div>
+
+        <div class="grid gap-6 md:grid-cols-2">
+          <div>
+            <label class="block text-xs font-black text-black uppercase tracking-wider">Durasi (menit)</label>
+            <input
+              bind:value={form.estimatedDurationMinutes}
+              class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-black text-black uppercase tracking-wider">Urutan</label>
+            <input
+              bind:value={form.sortOrder}
+              class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+            />
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="checkbox-is-published"
+            bind:checked={form.isPublished}
+            class="h-5 w-5 rounded border-2 border-black accent-black focus:ring-0 cursor-pointer"
+          />
+          <label for="checkbox-is-published" class="text-sm font-extrabold uppercase text-ink cursor-pointer">Publish materi</label>
+        </div>
+
+        <div class="pt-4">
+          <button
+            type="button"
+            class="w-full rounded-xl border-[3px] border-black bg-neo-green px-5 py-3 text-sm font-black text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+            onclick={handleSubmit}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
+          </button>
+        </div>
       </aside>
 
       <div class="rounded-2xl border-4 border-black bg-white p-6 shadow-solid">

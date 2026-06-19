@@ -1,9 +1,9 @@
 <!--
 Tujuan: Menyediakan halaman login fase 1 dengan validasi inline dan redirect berdasarkan role.
 Caller: Route publik `/login`.
-Dependensi: Auth store dan helper redirect role.
-Main Functions: Menangani input login, tampilkan error inline, dan arahkan user ke dashboard yang sesuai.
-Side Effects: Melakukan login ke backend dan memicu navigasi browser saat berhasil.
+Dependensi: Auth store, helper redirect role, dan toast notification.
+Main Functions: Menangani input login, tampilkan error inline, arahkan user ke dashboard yang sesuai, dan kirim feedback via toast.
+Side Effects: Melakukan login ke backend, memicu navigasi browser saat berhasil, dan menampilkan toast notification.
 -->
 
 <script lang="ts">
@@ -11,14 +11,13 @@ Side Effects: Melakukan login ke backend dan memicu navigasi browser saat berhas
 
   import { authStore } from '$lib/application/stores/auth.store.svelte'
   import { getDashboardPathByRole } from '$lib/domain/types/user.types'
+  import { notify } from '$lib/infrastructure/notifications/notify'
 
   let form = $state({
     email: '',
     password: ''
   })
   let errors = $state<Record<string, string>>({})
-  let submitError = $state<string | null>(null)
-
   const validate = () => {
     errors = {}
 
@@ -34,17 +33,16 @@ Side Effects: Melakukan login ke backend dan memicu navigasi browser saat berhas
   }
 
   const handleSubmit = async () => {
-    submitError = null
-
     if (!validate()) {
       return
     }
 
     try {
       const result = await authStore.login(form)
+      notify.success('Login berhasil. Mengarahkan ke dashboard...')
       await goto(getDashboardPathByRole(result.user.role))
     } catch (error) {
-      submitError = error instanceof Error ? error.message : 'Login gagal diproses'
+      notify.error(error instanceof Error ? error.message : 'Login gagal diproses')
     }
   }
 </script>
@@ -87,11 +85,6 @@ Side Effects: Melakukan login ke backend dan memicu navigasi browser saat berhas
     >
       {authStore.isLoading ? 'Memproses...' : 'Masuk'}
     </button>
-
-    {#if submitError}
-      <p class="text-sm font-bold text-neo-red">{submitError}</p>
-    {/if}
-
     <p class="text-sm font-semibold text-black">
       Belum punya akun?
       <a href="/daftar" class="font-extrabold text-neo-blue underline">Daftar sekarang</a>

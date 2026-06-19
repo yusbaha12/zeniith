@@ -1,12 +1,16 @@
 <!--
 Tujuan: Menyediakan halaman pengaturan operasional sistem untuk super admin.
 Caller: Route `/superadmin/pengaturan`.
-Dependensi: Svelte 5 Runes, SvelteKit data, dan fetch API client.
-Main Functions: Memperbarui parameter operasional sistem secara real-time.
+Dependensi: Svelte 5 Runes, SvelteKit data, fetch API response helper, dan toast notification.
+Main Functions: Memperbarui parameter operasional sistem secara real-time dan mengirim feedback via toast.
+Side Effects: Melakukan HTTP call penyimpanan konfigurasi, menampilkan toast, dan menampilkan hint validasi inline pada field angka.
 -->
 
 <script lang="ts">
   import { invalidateAll } from '$app/navigation'
+  import { inlineValidationForm } from '$lib/actions/inline-validation-form'
+  import { readApiData } from '$lib/infrastructure/api/response'
+  import { notify } from '$lib/infrastructure/notifications/notify'
 
   let { data } = $props()
 
@@ -18,18 +22,14 @@ Main Functions: Memperbarui parameter operasional sistem secara real-time.
   let paymentAutoVerify = $state(data.config.paymentAutoVerify ?? false)
 
   let isLoading = $state(false)
-  let successMsg = $state<string | null>(null)
-  let errorMsg = $state<string | null>(null)
-
   const handleSave = async (e: SubmitEvent) => {
     e.preventDefault()
     isLoading = true
-    successMsg = null
-    errorMsg = null
 
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/settings`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'content-type': 'application/json'
         },
@@ -44,15 +44,12 @@ Main Functions: Memperbarui parameter operasional sistem secara real-time.
         })
       })
 
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.message || 'Gagal menyimpan pengaturan')
-      }
+      await readApiData(res, 'Gagal menyimpan pengaturan')
 
-      successMsg = 'Pengaturan sistem berhasil disimpan!'
+      notify.success('Pengaturan sistem berhasil disimpan!')
       await invalidateAll()
     } catch (err: any) {
-      errorMsg = err.message
+      notify.error(err.message)
     } finally {
       isLoading = false
     }
@@ -80,73 +77,63 @@ Main Functions: Memperbarui parameter operasional sistem secara real-time.
       </div>
     </div>
   </div>
-
-  {#if successMsg}
-    <div class="rounded-xl border-2 border-black bg-neo-green/20 p-4 text-sm font-bold text-black shadow-solid-sm">
-      {successMsg}
-    </div>
-  {/if}
-
-  {#if errorMsg}
-    <div class="rounded-xl border-2 border-black bg-neo-red/20 p-4 text-sm font-bold text-black shadow-solid-sm">
-      {errorMsg}
-    </div>
-  {/if}
-
   <!-- Form Config -->
-  <form onsubmit={handleSave} class="max-w-xl rounded-2xl border-4 border-black bg-white p-8 shadow-solid space-y-6">
+  <form use:inlineValidationForm onsubmit={handleSave} class="max-w-xl rounded-2xl border-[4px] border-black bg-white p-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] space-y-6">
     <!-- Maintenance Mode -->
-    <div class="flex items-center justify-between pb-4 border-b-2 border-black/10">
+    <div class="flex items-center justify-between pb-4 border-b-[3px] border-black/10">
       <div>
-        <label for="input-maintenance" class="font-black text-black text-sm uppercase">Mode Pemeliharaan (Maintenance)</label>
+        <label for="input-maintenance" class="font-black text-black text-sm uppercase cursor-pointer">Mode Pemeliharaan (Maintenance)</label>
         <p class="text-xs text-ink/50 mt-1">Mengunci seluruh akses murid dan guru kecuali admin.</p>
       </div>
       <input
         type="checkbox"
         id="input-maintenance"
         bind:checked={maintenanceMode}
-        class="h-6 w-6 rounded border-2 border-black accent-black focus:ring-0 cursor-pointer"
+        class="h-6 w-6 rounded border-[3px] border-black bg-white accent-black focus:ring-0 cursor-pointer shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
       />
     </div>
 
     <!-- Registration Open -->
-    <div class="flex items-center justify-between pb-4 border-b-2 border-black/10">
+    <div class="flex items-center justify-between pb-4 border-b-[3px] border-black/10">
       <div>
-        <label for="input-registration" class="font-black text-black text-sm uppercase">Pendaftaran Murid Terbuka</label>
+        <label for="input-registration" class="font-black text-black text-sm uppercase cursor-pointer">Pendaftaran Murid Terbuka</label>
         <p class="text-xs text-ink/50 mt-1">Mengizinkan pengunjung baru mendaftar akun murid secara mandiri.</p>
       </div>
       <input
         type="checkbox"
         id="input-registration"
         bind:checked={registrationOpen}
-        class="h-6 w-6 rounded border-2 border-black accent-black focus:ring-0 cursor-pointer"
+        class="h-6 w-6 rounded border-[3px] border-black bg-white accent-black focus:ring-0 cursor-pointer shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
       />
     </div>
 
     <!-- Payment Auto Verify -->
-    <div class="flex items-center justify-between pb-4 border-b-2 border-black/10">
+    <div class="flex items-center justify-between pb-4 border-b-[3px] border-black/10">
       <div>
-        <label for="input-verify" class="font-black text-black text-sm uppercase">Verifikasi Pembayaran Otomatis</label>
+        <label for="input-verify" class="font-black text-black text-sm uppercase cursor-pointer">Verifikasi Pembayaran Otomatis</label>
         <p class="text-xs text-ink/50 mt-1">Mencoba bypass verifikasi manual oleh admin cabang saat murid checkout.</p>
       </div>
       <input
         type="checkbox"
         id="input-verify"
         bind:checked={paymentAutoVerify}
-        class="h-6 w-6 rounded border-2 border-black accent-black focus:ring-0 cursor-pointer"
+        class="h-6 w-6 rounded border-[3px] border-black bg-white accent-black focus:ring-0 cursor-pointer shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
       />
     </div>
 
     <!-- Max Warnings Allowed -->
     <div class="space-y-2">
-      <label for="input-warning" class="font-black text-black text-sm block uppercase">Batas Maksimal Peringatan Proctoring</label>
+      <label for="input-warning" class="font-black text-black text-sm block uppercase">Batas Maksimal Peringatan Proctoring <span class="text-neo-red">*</span></label>
       <p class="text-xs text-ink/50">Jumlah toleransi kecurangan (tab switch/blur) sebelum sesi ujian murid dihentikan paksa.</p>
       <input
         type="number"
         id="input-warning"
         required
+        min="1"
         bind:value={maxWarningsAllowed}
-        class="w-full rounded-xl border-2 border-black px-4 py-3 text-sm font-bold bg-white outline-none focus:bg-neo-yellow/5 focus:ring-0"
+        data-required-message="Batas maksimal peringatan wajib diisi."
+        data-min-message="Batas maksimal peringatan minimal 1."
+        class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
       />
     </div>
 
@@ -155,7 +142,7 @@ Main Functions: Memperbarui parameter operasional sistem secara real-time.
       <button
         type="submit"
         disabled={isLoading}
-        class="w-full rounded-xl border-2 border-black bg-neo-green px-6 py-4 text-sm font-extrabold uppercase text-black shadow-solid hover:-translate-y-0.5 active:translate-y-0 transition-transform disabled:opacity-50"
+        class="w-full rounded-xl border-[3px] border-black bg-neo-green px-6 py-4 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
       >
         {isLoading ? 'Menyimpan...' : 'Simpan Perubahan'}
       </button>
@@ -164,7 +151,4 @@ Main Functions: Memperbarui parameter operasional sistem secara real-time.
 </div>
 
 <style>
-  .text-mint-dark {
-    color: #1b4d3e;
-  }
 </style>
