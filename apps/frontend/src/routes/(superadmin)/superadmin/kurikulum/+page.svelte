@@ -7,13 +7,91 @@ Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilka
 -->
 
 <script lang="ts">
-  import { invalidateAll } from '$app/navigation'
+  import { goto, invalidateAll } from '$app/navigation'
+  import { page } from '$app/state'
   import { inlineValidationForm } from '$lib/actions/inline-validation-form'
   import { readApiData } from '$lib/infrastructure/api/response'
   import { dialog } from '$lib/infrastructure/dialog/dialog'
   import { notify } from '$lib/infrastructure/notifications/notify'
+  import Select from '$lib/components/ui/Select.svelte'
 
   let { data } = $props()
+
+  // Search & Filter state
+  let searchQuery = $state(page.url.searchParams.get('q') ?? '')
+  let selectedStatusFilter = $state(page.url.searchParams.get('status') ?? '')
+  const hasActiveFilters = $derived(Boolean(searchQuery || selectedStatusFilter))
+
+  const statusFilterOptions = [
+    { value: '', label: 'Semua Status' },
+    { value: 'active', label: 'Aktif' },
+    { value: 'inactive', label: 'Nonaktif' }
+  ]
+
+  let filteredSubjects = $derived(
+    data.subjects.filter((subj: any) => {
+      const query = searchQuery.trim().toLowerCase()
+      
+      const matchesStatus = !selectedStatusFilter ||
+        (selectedStatusFilter === 'active' && subj.isActive) ||
+        (selectedStatusFilter === 'inactive' && !subj.isActive)
+
+      if (!matchesStatus) return false
+
+      const subjectMatchesSearch = !query ||
+        subj.name.toLowerCase().includes(query) ||
+        (subj.description && subj.description.toLowerCase().includes(query))
+
+      const moduleMatchesSearch = subj.modules && subj.modules.some((mod: any) => 
+        mod.title.toLowerCase().includes(query) ||
+        (mod.description && mod.description.toLowerCase().includes(query))
+      )
+
+      return subjectMatchesSearch || moduleMatchesSearch
+    }).map((subj: any) => {
+      const query = searchQuery.trim().toLowerCase()
+      if (!query) return subj
+
+      return {
+        ...subj,
+        modules: subj.modules.filter((mod: any) => 
+          mod.title.toLowerCase().includes(query) ||
+          (mod.description && mod.description.toLowerCase().includes(query))
+        )
+      }
+    })
+  )
+
+  const syncFilters = async (url: URL) => {
+    await goto(url, {
+      replaceState: true,
+      invalidateAll: false,
+      noScroll: true
+    })
+  }
+
+  const handleSearch = async (e: SubmitEvent) => {
+    e.preventDefault()
+    const url = new URL(window.location.href)
+    const cleanSearch = searchQuery.trim()
+    if (cleanSearch) url.searchParams.set('q', cleanSearch)
+    else url.searchParams.delete('q')
+
+    if (selectedStatusFilter) url.searchParams.set('status', selectedStatusFilter)
+    else url.searchParams.delete('status')
+
+    await syncFilters(url)
+  }
+
+  const handleResetFilters = async () => {
+    searchQuery = ''
+    selectedStatusFilter = ''
+
+    const url = new URL(window.location.href)
+    url.searchParams.delete('q')
+    url.searchParams.delete('status')
+    await syncFilters(url)
+  }
 
   const apiBaseUrl = import.meta.env.VITE_PUBLIC_API_URL ?? 'http://localhost:3000/api'
 
@@ -253,14 +331,71 @@ Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilka
     </div>
   </div>
 
+  <!-- Search & Filter Card -->
+  <form onsubmit={handleSearch} class="rounded-2xl border-4 border-black bg-white p-6 shadow-solid">
+    <div class="flex flex-col gap-4 md:flex-row md:items-end">
+      <!-- Search Input -->
+      <div class="flex-1 space-y-2">
+        <label for="search" class="block text-xs font-black uppercase tracking-wider text-black">
+          Cari Kurikulum
+        </label>
+        <div class="relative">
+          <input
+            id="search"
+            type="text"
+            bind:value={searchQuery}
+            placeholder="Cari mata pelajaran atau modul..."
+            class="w-full rounded-xl border-[3px] border-black bg-white px-4 py-3 text-sm font-bold text-black placeholder-black/40 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] outline-none transition-all focus:translate-x-[1px] focus:translate-y-[1px] focus:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+          />
+        </div>
+      </div>
+
+      <!-- Status Filter -->
+      <div class="w-full md:w-48 space-y-2">
+        <label class="block text-xs font-black uppercase tracking-wider text-black">
+          Status
+        </label>
+        <Select
+          options={statusFilterOptions}
+          bind:value={selectedStatusFilter}
+          class="w-full"
+        />
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex gap-2">
+        <button
+          type="submit"
+          class="rounded-xl border-[3px] border-black bg-neo-blue px-6 py-3 text-sm font-black uppercase text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+        >
+          Cari
+        </button>
+
+        {#if hasActiveFilters}
+          <button
+            type="button"
+            onclick={handleResetFilters}
+            class="rounded-xl border-[3px] border-black bg-neo-red px-6 py-3 text-sm font-black uppercase text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+          >
+            Reset
+          </button>
+        {/if}
+      </div>
+    </div>
+  </form>
+
   <!-- Subjects Accordion List -->
   <div class="space-y-4">
-    {#if data.subjects.length === 0}
+    {#if filteredSubjects.length === 0}
       <div class="rounded-2xl border-4 border-black bg-white p-8 text-center text-ink/50 font-bold shadow-solid">
-        Tidak ada data mata pelajaran terdaftar.
+        {#if hasActiveFilters}
+          Tidak ada data mata pelajaran atau modul yang cocok dengan filter pencarian.
+        {:else}
+          Tidak ada data mata pelajaran terdaftar.
+        {/if}
       </div>
     {:else}
-      {#each data.subjects as subj}
+      {#each filteredSubjects as subj}
         <div class="overflow-hidden rounded-2xl border-4 border-black bg-white shadow-solid">
           <!-- Accordion Header -->
           <div class="flex items-center justify-between p-6 hover:bg-slate-50 transition-colors">

@@ -7,7 +7,8 @@ Side Effects: Melakukan HTTP call CRUD paket/fitur, memicu reload data, menampil
 -->
 
 <script lang="ts">
-  import { invalidateAll } from '$app/navigation'
+  import { goto, invalidateAll } from '$app/navigation'
+  import { page } from '$app/state'
   import { inlineValidationForm } from '$lib/actions/inline-validation-form'
   import { packageApi } from '$lib/infrastructure/api/package.api'
   import { readApiData } from '$lib/infrastructure/api/response'
@@ -22,6 +23,78 @@ Side Effects: Melakukan HTTP call CRUD paket/fitur, memicu reload data, menampil
   ]
 
   let { data } = $props()
+
+  // Search & Filter state
+  let searchQuery = $state(page.url.searchParams.get('q') ?? '')
+  let selectedTypeFilter = $state(page.url.searchParams.get('type') ?? '')
+  let selectedStatusFilter = $state(page.url.searchParams.get('status') ?? '')
+  const hasActiveFilters = $derived(Boolean(searchQuery || selectedTypeFilter || selectedStatusFilter))
+
+  const typeFilterOptions = [
+    { value: '', label: 'Semua Tipe' },
+    { value: 'REGULER', label: 'Reguler' },
+    { value: 'INTENSIF', label: 'Intensif' },
+    { value: 'PREMIUM', label: 'Premium' }
+  ]
+
+  const statusFilterOptions = [
+    { value: '', label: 'Semua Status' },
+    { value: 'active', label: 'Aktif' },
+    { value: 'inactive', label: 'Nonaktif' }
+  ]
+
+  let filteredPackages = $derived(
+    data.packages.filter((pkg: any) => {
+      const query = searchQuery.trim().toLowerCase()
+      const matchesSearch = !query || 
+        pkg.name.toLowerCase().includes(query) ||
+        (pkg.description && pkg.description.toLowerCase().includes(query))
+
+      const matchesType = !selectedTypeFilter || pkg.type === selectedTypeFilter
+
+      const matchesStatus = !selectedStatusFilter ||
+        (selectedStatusFilter === 'active' && pkg.isActive) ||
+        (selectedStatusFilter === 'inactive' && !pkg.isActive)
+
+      return matchesSearch && matchesType && matchesStatus
+    })
+  )
+
+  const syncFilters = async (url: URL) => {
+    await goto(url, {
+      replaceState: true,
+      invalidateAll: false,
+      noScroll: true
+    })
+  }
+
+  const handleSearch = async (e: SubmitEvent) => {
+    e.preventDefault()
+    const url = new URL(window.location.href)
+    const cleanSearch = searchQuery.trim()
+    if (cleanSearch) url.searchParams.set('q', cleanSearch)
+    else url.searchParams.delete('q')
+
+    if (selectedTypeFilter) url.searchParams.set('type', selectedTypeFilter)
+    else url.searchParams.delete('type')
+
+    if (selectedStatusFilter) url.searchParams.set('status', selectedStatusFilter)
+    else url.searchParams.delete('status')
+
+    await syncFilters(url)
+  }
+
+  const handleResetFilters = async () => {
+    searchQuery = ''
+    selectedTypeFilter = ''
+    selectedStatusFilter = ''
+
+    const url = new URL(window.location.href)
+    url.searchParams.delete('q')
+    url.searchParams.delete('type')
+    url.searchParams.delete('status')
+    await syncFilters(url)
+  }
 
   const apiBaseUrl = import.meta.env.VITE_PUBLIC_API_URL ?? 'http://localhost:3000/api'
 
@@ -372,6 +445,70 @@ Side Effects: Melakukan HTTP call CRUD paket/fitur, memicu reload data, menampil
     </div>
   </div>
 
+  <!-- Search & Filters -->
+  <form onsubmit={handleSearch} class="rounded-2xl border-4 border-black bg-white p-5 shadow-solid-md">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end">
+      <div class="lg:flex-[1.6]">
+        <label for="package-search-input" class="block text-[10px] font-black text-black uppercase tracking-wider mb-1">Cari Paket</label>
+        <div class="relative">
+          <svg class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-black/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+          </svg>
+          <input
+            id="package-search-input"
+            type="text"
+            bind:value={searchQuery}
+            placeholder="Cari nama atau deskripsi paket..."
+            class="w-full rounded-xl border-[3px] border-black bg-white py-3 pl-12 pr-4 text-sm font-black text-black outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+          />
+        </div>
+      </div>
+
+      <div class="lg:flex-1">
+        <p class="block text-[10px] font-black text-black uppercase tracking-wider mb-1">Filter Tipe Paket</p>
+        <Select
+          options={typeFilterOptions}
+          bind:value={selectedTypeFilter}
+          placeholder="Semua Tipe"
+          searchable={false}
+        />
+      </div>
+
+      <div class="lg:flex-1">
+        <p class="block text-[10px] font-black text-black uppercase tracking-wider mb-1">Filter Status</p>
+        <Select
+          options={statusFilterOptions}
+          bind:value={selectedStatusFilter}
+          placeholder="Semua Status"
+          searchable={false}
+        />
+      </div>
+
+      <div class="flex flex-col gap-2 sm:flex-row lg:w-auto">
+        <button
+          type="submit"
+          class="inline-flex items-center justify-center gap-2 rounded-xl border-[3px] border-black bg-neo-yellow px-5 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+        >
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M7 12h10M10 18h4" />
+          </svg>
+          Terapkan
+        </button>
+        <button
+          type="button"
+          disabled={!hasActiveFilters}
+          onclick={handleResetFilters}
+          class="inline-flex items-center justify-center gap-2 rounded-xl border-[3px] border-black bg-white px-5 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all"
+        >
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6 6 18" />
+          </svg>
+          Reset
+        </button>
+      </div>
+    </div>
+  </form>
+
   <!-- Package Table -->
   <div class="overflow-x-auto rounded-2xl border-4 border-black bg-white shadow-solid">
     <table class="w-full border-collapse text-left text-sm">
@@ -387,14 +524,18 @@ Side Effects: Melakukan HTTP call CRUD paket/fitur, memicu reload data, menampil
         </tr>
       </thead>
       <tbody class="divide-y-2 divide-black/10">
-        {#if data.packages.length === 0}
+        {#if filteredPackages.length === 0}
           <tr>
             <td colspan="7" class="px-6 py-8 text-center text-ink/50 font-bold">
-              Tidak ada data paket terdaftar.
+              {#if hasActiveFilters}
+                Tidak ada data paket yang cocok dengan filter pencarian.
+              {:else}
+                Tidak ada data paket terdaftar.
+              {/if}
             </td>
           </tr>
         {:else}
-          {#each data.packages as pkg}
+          {#each filteredPackages as pkg}
             <tr class="hover:bg-slate-50 transition-colors">
               <td class="px-6 py-4 font-mono font-bold text-ink/50">{pkg.sortOrder}</td>
               <td class="px-6 py-4 font-black text-ink">{pkg.name}</td>

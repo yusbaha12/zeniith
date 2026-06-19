@@ -7,15 +7,76 @@ Side Effects: Melakukan HTTP call CRUD cabang, memicu reload data, menampilkan t
 -->
 
 <script lang="ts">
-  import { invalidateAll } from '$app/navigation'
+  import { goto, invalidateAll } from '$app/navigation'
+  import { page } from '$app/state'
   import { inlineValidationForm } from '$lib/actions/inline-validation-form'
   import { readApiData } from '$lib/infrastructure/api/response'
   import { dialog } from '$lib/infrastructure/dialog/dialog'
   import { notify } from '$lib/infrastructure/notifications/notify'
+  import Select from '$lib/components/ui/Select.svelte'
 
   let { data } = $props()
 
   const apiBaseUrl = import.meta.env.VITE_PUBLIC_API_URL ?? 'http://localhost:3000/api'
+
+  // Search & Filter state
+  let searchQuery = $state(page.url.searchParams.get('q') ?? '')
+  let selectedStatusFilter = $state(page.url.searchParams.get('status') ?? '')
+  const hasActiveFilters = $derived(Boolean(searchQuery || selectedStatusFilter))
+
+  const statusFilterOptions = [
+    { value: '', label: 'Semua Status' },
+    { value: 'active', label: 'Aktif' },
+    { value: 'inactive', label: 'Nonaktif' }
+  ]
+
+  let filteredBranches = $derived(
+    data.branches.filter((b: any) => {
+      const query = searchQuery.trim().toLowerCase()
+      const matchesSearch = !query || 
+        b.name.toLowerCase().includes(query) ||
+        b.code.toLowerCase().includes(query) ||
+        (b.city && b.city.toLowerCase().includes(query)) ||
+        (b.address && b.address.toLowerCase().includes(query))
+
+      const matchesStatus = !selectedStatusFilter ||
+        (selectedStatusFilter === 'active' && b.isActive) ||
+        (selectedStatusFilter === 'inactive' && !b.isActive)
+
+      return matchesSearch && matchesStatus
+    })
+  )
+
+  const syncFilters = async (url: URL) => {
+    await goto(url, {
+      replaceState: true,
+      invalidateAll: false,
+      noScroll: true
+    })
+  }
+
+  const handleSearch = async (e: SubmitEvent) => {
+    e.preventDefault()
+    const url = new URL(window.location.href)
+    const cleanSearch = searchQuery.trim()
+    if (cleanSearch) url.searchParams.set('q', cleanSearch)
+    else url.searchParams.delete('q')
+
+    if (selectedStatusFilter) url.searchParams.set('status', selectedStatusFilter)
+    else url.searchParams.delete('status')
+
+    await syncFilters(url)
+  }
+
+  const handleResetFilters = async () => {
+    searchQuery = ''
+    selectedStatusFilter = ''
+
+    const url = new URL(window.location.href)
+    url.searchParams.delete('q')
+    url.searchParams.delete('status')
+    await syncFilters(url)
+  }
 
   // Modal states
   let isAddModalOpen = $state(false)
@@ -159,6 +220,60 @@ Side Effects: Melakukan HTTP call CRUD cabang, memicu reload data, menampilkan t
     </div>
   </div>
 
+  <!-- Search & Filters -->
+  <form onsubmit={handleSearch} class="rounded-2xl border-4 border-black bg-white p-5 shadow-solid-md">
+    <div class="flex flex-col gap-4 md:flex-row md:items-end">
+      <div class="flex-grow">
+        <label for="branch-search-input" class="block text-[10px] font-black text-black uppercase tracking-wider mb-1">Cari Cabang</label>
+        <div class="relative">
+          <svg class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-black/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+          </svg>
+          <input
+            id="branch-search-input"
+            type="text"
+            bind:value={searchQuery}
+            placeholder="Cari nama, kode, atau kota cabang..."
+            class="w-full rounded-xl border-[3px] border-black bg-white py-3 pl-12 pr-4 text-sm font-black text-black outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+          />
+        </div>
+      </div>
+
+      <div class="w-full md:w-64">
+        <p class="block text-[10px] font-black text-black uppercase tracking-wider mb-1">Filter Status</p>
+        <Select
+          options={statusFilterOptions}
+          bind:value={selectedStatusFilter}
+          placeholder="Semua Status"
+          searchable={false}
+        />
+      </div>
+
+      <div class="flex flex-col gap-2 sm:flex-row w-full md:w-auto">
+        <button
+          type="submit"
+          class="inline-flex items-center justify-center gap-2 rounded-xl border-[3px] border-black bg-neo-yellow px-5 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+        >
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M7 12h10M10 18h4" />
+          </svg>
+          Terapkan
+        </button>
+        <button
+          type="button"
+          disabled={!hasActiveFilters}
+          onclick={handleResetFilters}
+          class="inline-flex items-center justify-center gap-2 rounded-xl border-[3px] border-black bg-white px-5 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all"
+        >
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6 6 18" />
+          </svg>
+          Reset
+        </button>
+      </div>
+    </div>
+  </form>
+
   <!-- Branch Table -->
   <div class="overflow-x-auto rounded-2xl border-4 border-black bg-white shadow-solid">
     <table class="w-full border-collapse text-left text-sm">
@@ -173,14 +288,18 @@ Side Effects: Melakukan HTTP call CRUD cabang, memicu reload data, menampilkan t
         </tr>
       </thead>
       <tbody class="divide-y-2 divide-black/10">
-        {#if data.branches.length === 0}
+        {#if filteredBranches.length === 0}
           <tr>
             <td colspan="6" class="px-6 py-8 text-center text-ink/50 font-bold">
-              Tidak ada data cabang terdaftar.
+              {#if hasActiveFilters}
+                Tidak ada data cabang yang cocok dengan filter pencarian.
+              {:else}
+                Tidak ada data cabang terdaftar.
+              {/if}
             </td>
           </tr>
         {:else}
-          {#each data.branches as branch}
+          {#each filteredBranches as branch}
             <tr class="hover:bg-slate-50 transition-colors">
               <td class="px-6 py-4 font-mono font-black text-ink">{branch.code}</td>
               <td class="px-6 py-4 font-black text-ink">{branch.name}</td>

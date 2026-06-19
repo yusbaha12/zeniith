@@ -25,6 +25,7 @@ Side Effects: Melakukan HTTP call ke backend untuk ambil cabang dan kirim pendaf
     branchId: ''
   })
   let errors = $state<Record<string, string>>({})
+  let showPassword = $state(false)
   let branchOptions = $derived(
     branches.map(b => ({
       value: b.id,
@@ -117,12 +118,31 @@ Side Effects: Melakukan HTTP call ke backend untuk ambil cabang dan kirim pendaf
 
     <div>
       <label class="block text-xs font-black text-black uppercase tracking-wider">Password</label>
-      <input
-        type="password"
-        bind:value={form.password}
-        class={`mt-2 w-full rounded-xl border-[3px] px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5 ${errors.password ? 'border-neo-red' : 'border-black'}`}
-        placeholder="Minimal 8 karakter"
-      />
+      <div class="relative mt-2">
+        <input
+          type={showPassword ? 'text' : 'password'}
+          bind:value={form.password}
+          class={`w-full rounded-xl border-[3px] pl-4 pr-12 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5 ${errors.password ? 'border-neo-red' : 'border-black'}`}
+          placeholder="Minimal 8 karakter"
+        />
+        <button
+          type="button"
+          onclick={() => (showPassword = !showPassword)}
+          class="absolute right-4 top-1/2 -translate-y-1/2 text-black/60 hover:text-black focus:outline-none"
+          aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+        >
+          {#if showPassword}
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+            </svg>
+          {:else}
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+          {/if}
+        </button>
+      </div>
       {#if errors.password}
         <span class="mt-2 block text-xs font-bold text-neo-red">{errors.password}</span>
       {/if}
