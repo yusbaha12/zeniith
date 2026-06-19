@@ -1,8 +1,8 @@
 <!--
-Tujuan: Menyediakan editor Tiptap fase 3 untuk membuat dan menampilkan konten materi guru.
+Tujuan: Menyediakan editor Tiptap fase 3 untuk membuat dan menampilkan konten materi/soal guru.
 Caller: Halaman teacher buat/edit materi dan halaman detail materi teks/exercise.
 Dependensi: Tiptap core/extensions, callback upload gambar, dan konten JSON materi.
-Main Functions: Menginisialisasi editor, menyediakan toolbar dasar, dan sinkronkan JSON content ke parent.
+Main Functions: Menginisialisasi editor, sanitasi JSON content, menyediakan toolbar dasar, dan sinkronkan JSON content ke parent.
 Side Effects: Menjalankan editor rich text di browser dan dapat upload image via callback parent.
 Catatan Perbaikan: Menghapus auto-render KaTeX langsung pada DOM editor yang editable untuk mencegah kerusakan/desinkronisasi struktur dokumen Tiptap. Rumus tetap dirender dengan aman pada area pratinjau (preview).
 -->
@@ -11,7 +11,6 @@ Catatan Perbaikan: Menghapus auto-render KaTeX langsung pada DOM editor yang edi
 import { onMount } from 'svelte'
   import { Editor } from '@tiptap/core'
   import StarterKit from '@tiptap/starter-kit'
-  import Underline from '@tiptap/extension-underline'
   import Image from '@tiptap/extension-image'
   import { Table } from '@tiptap/extension-table'
   import TableRow from '@tiptap/extension-table-row'
@@ -41,6 +40,60 @@ import { onMount } from 'svelte'
   let isUploadingImage = $state(false)
   let rawHtmlForPreview = $state<string>('')
   let showGuide = $state(false)
+
+  const emptyDoc = () => ({
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph'
+      }
+    ]
+  })
+
+  const cloneContent = (value: Record<string, unknown> | null | undefined) => {
+    if (!value) return emptyDoc()
+
+    try {
+      return JSON.parse(JSON.stringify(value))
+    } catch {
+      return emptyDoc()
+    }
+  }
+
+  const sanitizeNode = (node: any): any | null => {
+    if (!node || typeof node !== 'object') return null
+
+    if (node.type === 'text') {
+      return typeof node.text === 'string' && node.text.length > 0 ? node : null
+    }
+
+    const next = { ...node }
+    if (Array.isArray(next.content)) {
+      const children = next.content.map(sanitizeNode).filter(Boolean)
+      if (children.length > 0) {
+        next.content = children
+      } else {
+        delete next.content
+      }
+    }
+
+    return next
+  }
+
+  const sanitizeContent = (value: Record<string, unknown> | null | undefined) => {
+    const cloned = cloneContent(value)
+    const sanitized = sanitizeNode(cloned)
+
+    if (!sanitized || sanitized.type !== 'doc') {
+      return emptyDoc()
+    }
+
+    if (!Array.isArray(sanitized.content) || sanitized.content.length === 0) {
+      sanitized.content = [{ type: 'paragraph' }]
+    }
+
+    return sanitized
+  }
 
   const refreshState = (editor: Editor) => {
     editorState = { editor }
@@ -105,15 +158,9 @@ import { onMount } from 'svelte'
   $effect(() => {
     if (editorState.editor && content !== undefined) {
       const currentJSON = editorState.editor.getJSON()
-      if (JSON.stringify(currentJSON) !== JSON.stringify(content)) {
-        editorState.editor.commands.setContent(content ?? {
-          type: 'doc',
-          content: [
-            {
-              type: 'paragraph'
-            }
-          ]
-        })
+      const nextContent = sanitizeContent(content)
+      if (JSON.stringify(currentJSON) !== JSON.stringify(nextContent)) {
+        editorState.editor.commands.setContent(nextContent)
         rawHtmlForPreview = editorState.editor.getHTML()
       }
     }
@@ -129,7 +176,6 @@ import { onMount } from 'svelte'
       editable,
       extensions: [
         StarterKit,
-        Underline,
         Image,
         Table.configure({ resizable: true }),
         TableRow,
@@ -140,14 +186,7 @@ import { onMount } from 'svelte'
           emptyEditorClass: 'is-editor-empty'
         })
       ],
-      content: content ?? {
-        type: 'doc',
-        content: [
-          {
-            type: 'paragraph'
-          }
-        ]
-      },
+      content: sanitizeContent(content),
       onTransaction: ({ editor }) => {
         refreshState(editor)
       }

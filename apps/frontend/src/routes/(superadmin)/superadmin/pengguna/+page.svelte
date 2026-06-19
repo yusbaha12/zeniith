@@ -2,12 +2,12 @@
 Tujuan: Menyediakan halaman kelola seluruh pengguna sistem (admin, guru, murid) untuk super admin.
 Caller: Route `/superadmin/pengguna`.
 Dependensi: Svelte 5 Runes, SvelteKit data, fetch API response helper, toast notification, dan dialog SweetAlert2.
-Main Functions: CRUD pengguna global secara interaktif dengan modal, reload state, feedback via toast, dan konfirmasi dialog.
-Side Effects: Melakukan HTTP call CRUD pengguna, memicu reload data, menampilkan toast/dialog, dan menampilkan hint validasi inline pada form modal.
+Main Functions: CRUD pengguna global secara interaktif dengan modal, filter/pagination via SvelteKit goto, reload state, feedback via toast, dan konfirmasi dialog.
+Side Effects: Melakukan HTTP call CRUD pengguna, navigasi query URL, memicu reload data, menampilkan toast/dialog, dan menampilkan hint validasi inline pada form modal.
 -->
 
 <script lang="ts">
-  import { invalidateAll } from '$app/navigation'
+  import { goto, invalidateAll } from '$app/navigation'
   import { page } from '$app/state'
   import { inlineValidationForm } from '$lib/actions/inline-validation-form'
   import { readApiData } from '$lib/infrastructure/api/response'
@@ -47,6 +47,7 @@ Side Effects: Melakukan HTTP call CRUD pengguna, memicu reload data, menampilkan
   let searchQuery = $state(page.url.searchParams.get('q') ?? '')
   let selectedRoleFilter = $state(page.url.searchParams.get('role') ?? '')
   let selectedBranchFilter = $state(page.url.searchParams.get('branchId') ?? '')
+  const hasActiveFilters = $derived(Boolean(searchQuery || selectedRoleFilter || selectedBranchFilter))
 
   // Modal states
   let isAddModalOpen = $state(false)
@@ -62,10 +63,19 @@ Side Effects: Melakukan HTTP call CRUD pengguna, memicu reload data, menampilkan
   let branchId = $state<string>('')
   let isActive = $state(true)
 
-  const handleSearch = (e: SubmitEvent) => {
+  const syncFilters = async (url: URL) => {
+    await goto(url, {
+      replaceState: true,
+      invalidateAll: true,
+      noScroll: true
+    })
+  }
+
+  const handleSearch = async (e: SubmitEvent) => {
     e.preventDefault()
     const url = new URL(window.location.href)
-    if (searchQuery) url.searchParams.set('q', searchQuery)
+    const cleanSearch = searchQuery.trim()
+    if (cleanSearch) url.searchParams.set('q', cleanSearch)
     else url.searchParams.delete('q')
 
     if (selectedRoleFilter) url.searchParams.set('role', selectedRoleFilter)
@@ -75,15 +85,26 @@ Side Effects: Melakukan HTTP call CRUD pengguna, memicu reload data, menampilkan
     else url.searchParams.delete('branchId')
 
     url.searchParams.set('page', '1')
-    window.history.replaceState({}, '', url.toString())
-    invalidateAll()
+    await syncFilters(url)
   }
 
-  const handlePageChange = (newPage: number) => {
+  const handleResetFilters = async () => {
+    searchQuery = ''
+    selectedRoleFilter = ''
+    selectedBranchFilter = ''
+
+    const url = new URL(window.location.href)
+    url.searchParams.delete('q')
+    url.searchParams.delete('role')
+    url.searchParams.delete('branchId')
+    url.searchParams.set('page', '1')
+    await syncFilters(url)
+  }
+
+  const handlePageChange = async (newPage: number) => {
     const url = new URL(window.location.href)
     url.searchParams.set('page', newPage.toString())
-    window.history.replaceState({}, '', url.toString())
-    invalidateAll()
+    await syncFilters(url)
   }
 
   const openAddModal = () => {
@@ -237,43 +258,88 @@ Side Effects: Melakukan HTTP call CRUD pengguna, memicu reload data, menampilkan
   </div>
 
   <!-- Search & Filters -->
-  <form onsubmit={handleSearch} class="grid gap-3 sm:grid-cols-4 items-end">
-    <div class="sm:col-span-2">
-      <label class="block text-[10px] font-black text-black uppercase tracking-wider mb-1">Cari Pengguna</label>
-      <input
-        type="text"
-        bind:value={searchQuery}
-        placeholder="Cari nama/email..."
-        class="w-full rounded-xl border-[3px] border-black bg-white px-4 py-3 text-sm font-black text-black outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
-      />
+  <form onsubmit={handleSearch} class="rounded-2xl border-4 border-black bg-white p-5 shadow-solid-md">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end">
+      <div class="lg:flex-[1.6]">
+        <label for="user-search-input" class="block text-[10px] font-black text-black uppercase tracking-wider mb-1">Cari Pengguna</label>
+        <div class="relative">
+          <svg class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-black/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+          </svg>
+          <input
+            id="user-search-input"
+            type="text"
+            bind:value={searchQuery}
+            placeholder="Cari nama atau email..."
+            class="w-full rounded-xl border-[3px] border-black bg-white py-3 pl-12 pr-4 text-sm font-black text-black outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
+          />
+        </div>
+      </div>
+
+      <div class="lg:flex-1">
+        <p class="block text-[10px] font-black text-black uppercase tracking-wider mb-1">Filter Peran</p>
+        <Select
+          options={roleFilterOptions}
+          bind:value={selectedRoleFilter}
+          placeholder="Semua Peran"
+          searchable={false}
+        />
+      </div>
+
+      <div class="lg:flex-1">
+        <p class="block text-[10px] font-black text-black uppercase tracking-wider mb-1">Filter Cabang</p>
+        <Select
+          options={branchFilterOptions}
+          bind:value={selectedBranchFilter}
+          placeholder="Semua Cabang"
+          searchable={true}
+        />
+      </div>
+
+      <div class="flex flex-col gap-2 sm:flex-row lg:w-auto">
+        <button
+          type="submit"
+          class="inline-flex items-center justify-center gap-2 rounded-xl border-[3px] border-black bg-neo-yellow px-5 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+        >
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M7 12h10M10 18h4" />
+          </svg>
+          Terapkan
+        </button>
+        <button
+          type="button"
+          disabled={!hasActiveFilters}
+          onclick={handleResetFilters}
+          class="inline-flex items-center justify-center gap-2 rounded-xl border-[3px] border-black bg-white px-5 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all"
+        >
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6 6 18" />
+          </svg>
+          Reset
+        </button>
+      </div>
     </div>
 
-    <div>
-      <label class="block text-[10px] font-black text-black uppercase tracking-wider mb-1">Filter Peran</label>
-      <Select
-        options={roleFilterOptions}
-        bind:value={selectedRoleFilter}
-        placeholder="Semua Peran"
-        searchable={false}
-      />
+    <div class="mt-4 flex flex-wrap items-center gap-2 border-t-[3px] border-black/10 pt-3">
+      <span class="rounded-lg border-2 border-black bg-slate-100 px-3 py-1 text-[10px] font-black uppercase text-black shadow-solid-sm">
+        Total: {data.users.total} pengguna
+      </span>
+      {#if searchQuery}
+        <span class="rounded-lg border-2 border-black bg-neo-yellow px-3 py-1 text-[10px] font-black uppercase text-black shadow-solid-sm">
+          Cari: {searchQuery}
+        </span>
+      {/if}
+      {#if selectedRoleFilter}
+        <span class="rounded-lg border-2 border-black bg-neo-pink px-3 py-1 text-[10px] font-black uppercase text-black shadow-solid-sm">
+          Peran: {roleFilterOptions.find((item) => item.value === selectedRoleFilter)?.label ?? selectedRoleFilter}
+        </span>
+      {/if}
+      {#if selectedBranchFilter}
+        <span class="rounded-lg border-2 border-black bg-neo-blue px-3 py-1 text-[10px] font-black uppercase text-white shadow-solid-sm">
+          Cabang: {branchFilterOptions.find((item) => item.value === selectedBranchFilter)?.label ?? selectedBranchFilter}
+        </span>
+      {/if}
     </div>
-
-    <div>
-      <label class="block text-[10px] font-black text-black uppercase tracking-wider mb-1">Filter Cabang</label>
-      <Select
-        options={branchFilterOptions}
-        bind:value={selectedBranchFilter}
-        placeholder="Semua Cabang"
-        searchable={true}
-      />
-    </div>
-
-    <button
-      type="submit"
-      class="rounded-xl border-2 border-black bg-neo-yellow px-6 py-3 text-sm font-extrabold uppercase text-black shadow-solid hover:-translate-y-0.5 active:translate-y-0 transition-transform sm:col-span-4"
-    >
-      Cari & Filter
-    </button>
   </form>
 
   <!-- Table -->

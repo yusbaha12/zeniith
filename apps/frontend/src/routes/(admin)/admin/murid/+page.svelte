@@ -7,7 +7,7 @@ Side Effects: Melakukan HTTP call CRUD murid, memicu reload data, menampilkan di
 -->
 
 <script lang="ts">
-  import { invalidateAll } from '$app/navigation'
+  import { invalidateAll, replaceState } from '$app/navigation'
   import { inlineValidationForm } from '$lib/actions/inline-validation-form'
   import { dialog } from '$lib/infrastructure/dialog/dialog'
   import { page } from '$app/state'
@@ -42,14 +42,14 @@ Side Effects: Melakukan HTTP call CRUD murid, memicu reload data, menampilkan di
       url.searchParams.delete('q')
     }
     url.searchParams.set('page', '1')
-    window.history.replaceState({}, '', url.toString())
+    replaceState(url, {})
     invalidateAll()
   }
 
   const handlePageChange = (newPage: number) => {
     const url = new URL(window.location.href)
     url.searchParams.set('page', newPage.toString())
-    window.history.replaceState({}, '', url.toString())
+    replaceState(url, {})
     invalidateAll()
   }
 

@@ -2,7 +2,7 @@
 Tujuan: Menyediakan halaman edit ujian super admin untuk menambah dan mengubah soal ujian nasional.
 Caller: Route `/superadmin/ujian/[id]/edit`.
 Dependensi: Exam API frontend dan MaterialRichEditor.
-Main Functions: Memuat detail ujian, menampilkan daftar soal, dan menyimpan soal baru/perubahan soal.
+Main Functions: Memuat detail ujian, menampilkan daftar soal, membuat dokumen Tiptap valid, dan menyimpan soal baru/perubahan soal.
 Side Effects: Melakukan HTTP call ke backend superadmin detail ujian, create question, dan update question.
 -->
 
@@ -19,7 +19,7 @@ Side Effects: Melakukan HTTP call ke backend superadmin detail ujian, create que
     content: [
       {
         type: 'paragraph',
-        content: [{ type: 'text', text }]
+        ...(text ? { content: [{ type: 'text', text }] } : {})
       }
     ]
   })
