@@ -1,12 +1,13 @@
 /*
-Tujuan: Menyediakan styling global frontend fase 0 dengan Tailwind dan identitas visual proyek.
+Tujuan: Menyediakan styling global frontend fase 0 dengan Tailwind, identitas visual proyek, dan skin SweetAlert2 neobrutalism.
 Caller: Root layout SvelteKit.
-Dependensi: Tailwind CSS v4 CSS-first, token @theme, dan font Plus Jakarta Sans dari app.html.
-Main Functions: Mengaktifkan import Tailwind v4, token tema proyek, styling global body/selection, dan utilitas visual neobrutalism.
-Side Effects: Mempengaruhi seluruh tampilan frontend lintas route.
+Dependensi: Tailwind CSS v4 CSS-first, token @theme, font Plus Jakarta Sans dari app.html, dan sweetalert2.
+Main Functions: Mengaktifkan import Tailwind v4, token tema proyek, styling global body/selection, utilitas visual neobrutalism, dan dialog SweetAlert2.
+Side Effects: Mempengaruhi seluruh tampilan frontend lintas route dan dialog konfirmasi.
 */
 
 @import "tailwindcss";
+@import "sweetalert2/dist/sweetalert2.min.css";
 
 @theme {
   /* Warna Kustom Neobrutalism */
@@ -109,4 +110,68 @@ body {
     #94A3B8 8px,
     #94A3B8 16px
   );
+}
+
+.neo-swal-container {
+  z-index: 11000;
+}
+
+.neo-swal-popup {
+  border: 5px solid #000000;
+  border-radius: 14px;
+  box-shadow: 10px 10px 0 #000000;
+  background: #ffffff;
+  color: #000000;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  padding: 1.25rem;
+}
+
+.neo-swal-title {
+  color: #000000;
+  font-size: 1.4rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.neo-swal-html {
+  color: rgba(0, 0, 0, 0.72);
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.neo-swal-icon {
+  border-width: 4px;
+}
+
+.neo-swal-actions {
+  gap: 0.75rem;
+}
+
+.neo-swal-button {
+  min-width: 120px;
+  border: 3px solid #000000;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  color: #000000;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  box-shadow: 4px 4px 0 #000000;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.neo-swal-button:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 #000000;
+}
+
+.neo-swal-confirm {
+  background: #FACC15;
+}
+
+.neo-swal-cancel {
+  background: #ffffff;
 }

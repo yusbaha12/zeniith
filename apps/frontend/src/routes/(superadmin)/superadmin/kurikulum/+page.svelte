@@ -1,15 +1,16 @@
 <!--
 Tujuan: Menyediakan halaman kelola kurikulum global (mata pelajaran dan modul) untuk super admin.
 Caller: Route `/superadmin/kurikulum`.
-Dependensi: Svelte 5 Runes, SvelteKit data, fetch API response helper, dan toast notification.
-Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject dengan feedback via toast.
-Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilkan toast, dan menampilkan hint validasi inline pada form modal.
+Dependensi: Svelte 5 Runes, SvelteKit data, fetch API response helper, toast notification, dan dialog SweetAlert2.
+Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject dengan feedback via toast dan konfirmasi dialog.
+Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilkan toast/dialog, dan menampilkan hint validasi inline pada form modal.
 -->
 
 <script lang="ts">
   import { invalidateAll } from '$app/navigation'
   import { inlineValidationForm } from '$lib/actions/inline-validation-form'
   import { readApiData } from '$lib/infrastructure/api/response'
+  import { dialog } from '$lib/infrastructure/dialog/dialog'
   import { notify } from '$lib/infrastructure/notifications/notify'
 
   let { data } = $props()
@@ -107,7 +108,12 @@ Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilka
   }
 
   const handleDeleteSubject = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus mata pelajaran ini?')) return
+    const confirmed = await dialog.confirm({
+      title: 'Hapus Mata Pelajaran?',
+      message: 'Apakah Anda yakin ingin menghapus mata pelajaran ini?',
+      confirmText: 'Ya, hapus'
+    })
+    if (!confirmed) return
 
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/subjects/${id}`, {
@@ -190,7 +196,12 @@ Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilka
   }
 
   const handleDeleteModule = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus modul ini?')) return
+    const confirmed = await dialog.confirm({
+      title: 'Hapus Modul?',
+      message: 'Apakah Anda yakin ingin menghapus modul ini?',
+      confirmText: 'Ya, hapus'
+    })
+    if (!confirmed) return
 
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/modules/${id}`, {

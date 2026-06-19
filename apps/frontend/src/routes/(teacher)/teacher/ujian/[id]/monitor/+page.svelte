@@ -1,15 +1,16 @@
 <!--
 Tujuan: Menyediakan halaman monitor live proctoring ujian untuk pengawas/guru fase 6.
 Caller: Route `/teacher/ujian/[id]/monitor`.
-Dependensi: Exam API, WebSocket client, shared WS events, Tailwind CSS, dan toast notification.
-Main Functions: Menampilkan status realtime pengerjaan peserta ujian, log kecurangan, memberi warning manual, force terminate, dan mengirim feedback via toast.
-Side Effects: Melakukan koneksi WebSocket, HTTP get proctor data/log, HTTP post warn/terminate, dan menampilkan toast notification.
+Dependensi: Exam API, WebSocket client, shared WS events, Tailwind CSS, toast notification, dan dialog SweetAlert2.
+Main Functions: Menampilkan status realtime pengerjaan peserta ujian, log kecurangan, memberi warning manual, force terminate, konfirmasi dialog, dan mengirim feedback via toast.
+Side Effects: Melakukan koneksi WebSocket, HTTP get proctor data/log, HTTP post warn/terminate, menampilkan dialog konfirmasi, dan menampilkan toast notification.
 -->
 
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
   import { CLIENT_EVENTS, SERVER_EVENTS } from '@lms-bimbel/shared'
   import { examApi } from '$lib/infrastructure/api/exam.api'
+  import { dialog } from '$lib/infrastructure/dialog/dialog'
   import { notify } from '$lib/infrastructure/notifications/notify'
   import { wsClient } from '$lib/infrastructure/websocket/ws.client'
 
@@ -67,9 +68,12 @@ Side Effects: Melakukan koneksi WebSocket, HTTP get proctor data/log, HTTP post 
 
   // Action: Terminate Session
   const handleForceTerminate = async (sessionId: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghentikan sesi ujian murid ini secara paksa? Sesi tidak akan bisa dilanjutkan.')) {
-      return
-    }
+    const confirmed = await dialog.confirm({
+      title: 'Hentikan Sesi?',
+      message: 'Apakah Anda yakin ingin menghentikan sesi ujian murid ini secara paksa? Sesi tidak akan bisa dilanjutkan.',
+      confirmText: 'Ya, hentikan'
+    })
+    if (!confirmed) return
 
     try {
       await examApi.terminateSession(sessionId)

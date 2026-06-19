@@ -1,9 +1,9 @@
 <!--
 Tujuan: Menyediakan halaman kelola paket belajar (reguler, intensif, premium) untuk super admin.
 Caller: Route `/superadmin/paket`.
-Dependensi: Svelte 5 Runes, SvelteKit data, fetch API client/helper, dan toast notification.
-Main Functions: CRUD paket secara interaktif dengan modal, reload state, dan feedback via toast.
-Side Effects: Melakukan HTTP call CRUD paket/fitur, memicu reload data, menampilkan toast, dan menampilkan hint validasi inline pada form modal.
+Dependensi: Svelte 5 Runes, SvelteKit data, fetch API client/helper, toast notification, dan dialog SweetAlert2.
+Main Functions: CRUD paket secara interaktif dengan modal, reload state, feedback via toast, dan konfirmasi dialog.
+Side Effects: Melakukan HTTP call CRUD paket/fitur, memicu reload data, menampilkan toast/dialog, dan menampilkan hint validasi inline pada form modal.
 -->
 
 <script lang="ts">
@@ -11,6 +11,7 @@ Side Effects: Melakukan HTTP call CRUD paket/fitur, memicu reload data, menampil
   import { inlineValidationForm } from '$lib/actions/inline-validation-form'
   import { packageApi } from '$lib/infrastructure/api/package.api'
   import { readApiData } from '$lib/infrastructure/api/response'
+  import { dialog } from '$lib/infrastructure/dialog/dialog'
   import { notify } from '$lib/infrastructure/notifications/notify'
   import Select from '$lib/components/ui/Select.svelte'
 
@@ -132,7 +133,12 @@ Side Effects: Melakukan HTTP call CRUD paket/fitur, memicu reload data, menampil
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus paket ini?')) return
+    const confirmed = await dialog.confirm({
+      title: 'Hapus Paket?',
+      message: 'Apakah Anda yakin ingin menghapus paket ini?',
+      confirmText: 'Ya, hapus'
+    })
+    if (!confirmed) return
 
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/packages/${id}`, {
@@ -246,7 +252,12 @@ Side Effects: Melakukan HTTP call CRUD paket/fitur, memicu reload data, menampil
   }
 
   const handleDeleteFeature = async (featureId: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus fitur ini?')) return
+    const confirmed = await dialog.confirm({
+      title: 'Hapus Fitur?',
+      message: 'Apakah Anda yakin ingin menghapus fitur ini?',
+      confirmText: 'Ya, hapus'
+    })
+    if (!confirmed) return
     isFeatureLoading = true
     featureErrorMsg = null
 

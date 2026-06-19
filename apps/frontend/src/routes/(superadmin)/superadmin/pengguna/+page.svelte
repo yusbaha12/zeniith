@@ -1,9 +1,9 @@
 <!--
 Tujuan: Menyediakan halaman kelola seluruh pengguna sistem (admin, guru, murid) untuk super admin.
 Caller: Route `/superadmin/pengguna`.
-Dependensi: Svelte 5 Runes, SvelteKit data, fetch API response helper, dan toast notification.
-Main Functions: CRUD pengguna global secara interaktif dengan modal, reload state, dan feedback via toast.
-Side Effects: Melakukan HTTP call CRUD pengguna, memicu reload data, menampilkan toast, dan menampilkan hint validasi inline pada form modal.
+Dependensi: Svelte 5 Runes, SvelteKit data, fetch API response helper, toast notification, dan dialog SweetAlert2.
+Main Functions: CRUD pengguna global secara interaktif dengan modal, reload state, feedback via toast, dan konfirmasi dialog.
+Side Effects: Melakukan HTTP call CRUD pengguna, memicu reload data, menampilkan toast/dialog, dan menampilkan hint validasi inline pada form modal.
 -->
 
 <script lang="ts">
@@ -11,6 +11,7 @@ Side Effects: Melakukan HTTP call CRUD pengguna, memicu reload data, menampilkan
   import { page } from '$app/state'
   import { inlineValidationForm } from '$lib/actions/inline-validation-form'
   import { readApiData } from '$lib/infrastructure/api/response'
+  import { dialog } from '$lib/infrastructure/dialog/dialog'
   import { notify } from '$lib/infrastructure/notifications/notify'
   import Select from '$lib/components/ui/Select.svelte'
 
@@ -178,7 +179,12 @@ Side Effects: Melakukan HTTP call CRUD pengguna, memicu reload data, menampilkan
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menonaktifkan pengguna ini?')) return
+    const confirmed = await dialog.confirm({
+      title: 'Nonaktifkan Pengguna?',
+      message: 'Apakah Anda yakin ingin menonaktifkan pengguna ini?',
+      confirmText: 'Ya, nonaktifkan'
+    })
+    if (!confirmed) return
 
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/users/${id}`, {

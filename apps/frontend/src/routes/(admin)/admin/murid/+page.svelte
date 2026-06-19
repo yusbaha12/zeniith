@@ -1,14 +1,15 @@
 <!--
 Tujuan: Menyediakan halaman kelola murid cabang untuk admin cabang.
 Caller: Route `/admin/murid`.
-Dependensi: Svelte 5 Runes, SvelteKit data, dan fetch API client.
-Main Functions: CRUD murid lokal cabang secara interaktif dengan modal dan reload state.
-Side Effects: Melakukan HTTP call CRUD murid, memicu reload data, dan menampilkan hint validasi inline pada form modal.
+Dependensi: Svelte 5 Runes, SvelteKit data, fetch API client, dan dialog SweetAlert2.
+Main Functions: CRUD murid lokal cabang secara interaktif dengan modal, reload state, dan konfirmasi dialog.
+Side Effects: Melakukan HTTP call CRUD murid, memicu reload data, menampilkan dialog error/konfirmasi, dan menampilkan hint validasi inline pada form modal.
 -->
 
 <script lang="ts">
   import { invalidateAll } from '$app/navigation'
   import { inlineValidationForm } from '$lib/actions/inline-validation-form'
+  import { dialog } from '$lib/infrastructure/dialog/dialog'
   import { page } from '$app/state'
 
   let { data } = $props()
@@ -132,7 +133,12 @@ Side Effects: Melakukan HTTP call CRUD murid, memicu reload data, dan menampilka
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menonaktifkan murid ini?')) return
+    const confirmed = await dialog.confirm({
+      title: 'Nonaktifkan Murid?',
+      message: 'Apakah Anda yakin ingin menonaktifkan murid ini?',
+      confirmText: 'Ya, nonaktifkan'
+    })
+    if (!confirmed) return
 
     try {
       const res = await fetch(`${apiBaseUrl}/admin/students/${id}`, {
@@ -146,7 +152,7 @@ Side Effects: Melakukan HTTP call CRUD murid, memicu reload data, dan menampilka
 
       await invalidateAll()
     } catch (err: any) {
-      alert(err.message)
+      await dialog.error(err.message)
     }
   }
 </script>

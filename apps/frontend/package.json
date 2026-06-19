@@ -23,7 +23,8 @@
     "@tiptap/starter-kit": "^3.7.2",
     "gsap": "^3.15.0",
     "katex": "^0.17.0",
-    "svelte": "^5.56.3"
+    "svelte": "^5.56.3",
+    "sweetalert2": "^11.26.25"
   },
   "devDependencies": {
     "@sveltejs/adapter-auto": "^7.0.1",
@@ -39,8 +40,8 @@
   "x-doc": {
     "tujuan": "Manifest frontend fase 0 untuk SvelteKit, Svelte 5, dan Tailwind CSS v4.",
     "caller": "Vite dev server, SvelteKit build, Docker frontend image, developer lokal.",
-    "dependensi": "svelte, @sveltejs/kit, tailwindcss, @tailwindcss/vite, dan shared package.",
-    "mainFunctions": "Menyediakan dependency dan script utama frontend fase 0 termasuk host toast notification internal.",
+    "dependensi": "svelte, @sveltejs/kit, tailwindcss, @tailwindcss/vite, sweetalert2, dan shared package.",
+    "mainFunctions": "Menyediakan dependency dan script utama frontend fase 0 termasuk host toast notification internal dan dialog konfirmasi.",
     "sideEffects": "Menjalankan dev server, build, preview, dan typecheck frontend."
   }
 }

@@ -1,15 +1,16 @@
 <!--
 Tujuan: Menyediakan halaman kelola seluruh cabang untuk super admin.
 Caller: Route `/superadmin/cabang`.
-Dependensi: Svelte 5 Runes, SvelteKit data, fetch API response helper, dan toast notification.
-Main Functions: CRUD cabang se-nasional secara interaktif dengan modal, reload state, dan feedback via toast.
-Side Effects: Melakukan HTTP call CRUD cabang, memicu reload data, menampilkan toast, dan menampilkan hint validasi inline pada form modal.
+Dependensi: Svelte 5 Runes, SvelteKit data, fetch API response helper, toast notification, dan dialog SweetAlert2.
+Main Functions: CRUD cabang se-nasional secara interaktif dengan modal, reload state, feedback via toast, dan konfirmasi dialog.
+Side Effects: Melakukan HTTP call CRUD cabang, memicu reload data, menampilkan toast/dialog, dan menampilkan hint validasi inline pada form modal.
 -->
 
 <script lang="ts">
   import { invalidateAll } from '$app/navigation'
   import { inlineValidationForm } from '$lib/actions/inline-validation-form'
   import { readApiData } from '$lib/infrastructure/api/response'
+  import { dialog } from '$lib/infrastructure/dialog/dialog'
   import { notify } from '$lib/infrastructure/notifications/notify'
 
   let { data } = $props()
@@ -101,7 +102,12 @@ Side Effects: Melakukan HTTP call CRUD cabang, memicu reload data, menampilkan t
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus cabang ini?')) return
+    const confirmed = await dialog.confirm({
+      title: 'Hapus Cabang?',
+      message: 'Apakah Anda yakin ingin menghapus cabang ini?',
+      confirmText: 'Ya, hapus'
+    })
+    if (!confirmed) return
 
     try {
       const res = await fetch(`${apiBaseUrl}/superadmin/branches/${id}`, {
