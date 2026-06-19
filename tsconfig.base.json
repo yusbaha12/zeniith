@@ -1,0 +1,29 @@
+/*
+Tujuan: Basis konfigurasi TypeScript lintas workspace untuk backend, frontend, dan shared package.
+Caller: tsconfig package-level di apps/backend, apps/frontend, dan packages/shared.
+Dependensi: TypeScript compiler, workspace package @lms-bimbel/shared.
+Main Functions: Menyatukan strict mode, module resolution, dan path alias monorepo.
+Side Effects: Memengaruhi hasil type-check dan build TypeScript di seluruh workspace.
+*/
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@lms-bimbel/shared": [
+        "./packages/shared/src/index.ts"
+      ],
+      "@lms-bimbel/shared/*": [
+        "./packages/shared/src/*"
+      ]
+    }
+  }
+}

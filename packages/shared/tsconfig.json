@@ -1,0 +1,19 @@
+/*
+Tujuan: Konfigurasi TypeScript untuk package shared lintas backend dan frontend.
+Caller: Script build dan typecheck package @lms-bimbel/shared.
+Dependensi: tsconfig.base.json root workspace.
+Main Functions: Menentukan source include dan target output tipe package shared.
+Side Effects: Mengontrol validasi type untuk kontrak lintas workspace.
+*/
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "emitDeclarationOnly": true
+  },
+  "include": [
+    "src/**/*.ts"
+  ]
+}

@@ -1,0 +1,30 @@
+name: LMS Bimbel CI Pipeline
+
+on:
+  push:
+    branches: [ main, master, dev ]
+  pull_request:
+    branches: [ main, master, dev ]
+
+jobs:
+  build-and-test:
+    name: Build, Lint & Test (Bun Monorepo)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun Environment
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Monorepo Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run Code Typecheck
+        run: bun run typecheck
+
+      - name: Run Backend Unit Tests
+        run: bun run --filter '@lms-bimbel/backend' test

@@ -1,0 +1,132 @@
+/*
+Tujuan: Menyediakan seed baseline registry permission dan mapping role permission untuk fondasi RBAC granular.
+Caller: Runner seed database backend.
+Dependensi: Tidak ada dependensi eksternal; hanya konstanta code permission stabil.
+Main Functions: Mengekspor daftar permission dan mapping role default yang dipakai saat bootstrap environment lokal.
+Side Effects: Tidak ada; hanya data untuk dipakai runner seed.
+*/
+
+const permissionRegistry = [
+  ['profile.self.view', 'profile', 'view', 'Lihat profil sendiri'],
+  ['profile.self.update', 'profile', 'update', 'Edit profil sendiri'],
+  ['user.view.global', 'user', 'view_global', 'Lihat user lintas semua cabang'],
+  ['user.view.branch', 'user', 'view_branch', 'Lihat user dalam cabang sendiri'],
+  ['user.create.teacher', 'user', 'create_teacher', 'Buat akun guru'],
+  ['user.create.branch_admin', 'user', 'create_branch_admin', 'Buat akun admin cabang'],
+  ['user.create.student', 'user', 'create_student', 'Buat akun murid secara administratif'],
+  ['user.update.global', 'user', 'update_global', 'Edit user lintas cabang'],
+  ['user.update.branch', 'user', 'update_branch', 'Edit user dalam cabang sendiri'],
+  ['user.role.manage', 'user', 'role_manage', 'Ubah role user'],
+  ['user.password.reset', 'user', 'password_reset', 'Reset password user lain'],
+  ['user.deactivate', 'user', 'deactivate', 'Nonaktifkan user'],
+  ['branch.view.global', 'branch', 'view_global', 'Lihat semua cabang'],
+  ['branch.view.detail', 'branch', 'view_detail', 'Lihat detail cabang'],
+  ['branch.manage', 'branch', 'manage', 'Buat, edit, nonaktifkan cabang'],
+  ['branch.report.view', 'branch', 'report_view', 'Lihat laporan cabang'],
+  ['package.view.public', 'package', 'view_public', 'Lihat katalog paket publik'],
+  ['package.manage', 'package', 'manage', 'Buat, edit, arsipkan paket'],
+  ['order.create', 'order', 'create', 'Buat order paket'],
+  ['order.self.view', 'order', 'self_view', 'Lihat order sendiri'],
+  ['order.branch.view', 'order', 'branch_view', 'Lihat order cabang'],
+  ['order.verify', 'order', 'verify', 'Approve atau reject pembayaran'],
+  ['subscription.manual.extend', 'subscription', 'manual_extend', 'Perpanjang langganan manual'],
+  ['subject.view', 'subject', 'view', 'Lihat daftar mata pelajaran'],
+  ['subject.manage', 'subject', 'manage', 'Kelola mata pelajaran'],
+  ['module.manage', 'module', 'manage', 'Kelola modul'],
+  ['material.manage.own', 'material', 'manage_own', 'Kelola materi milik sendiri'],
+  ['material.manage.branch', 'material', 'manage_branch', 'Kelola materi lingkup cabang'],
+  ['curriculum.manage', 'curriculum', 'manage', 'Kelola struktur kurikulum global'],
+  ['material.consume', 'material', 'consume', 'Konsumsi materi belajar'],
+  ['material.progress.update', 'material_progress', 'update', 'Tandai progress belajar'],
+  ['exam.view', 'exam', 'view', 'Lihat daftar dan detail ujian'],
+  ['exam.manage.own', 'exam', 'manage_own', 'Kelola ujian milik sendiri'],
+  ['exam.manage.branch', 'exam', 'manage_branch', 'Kelola ujian cabang'],
+  ['exam.publish', 'exam', 'publish', 'Publish atau arsipkan ujian'],
+  ['question.manage', 'question', 'manage', 'Kelola soal ujian'],
+  ['exam.take', 'exam', 'take', 'Mengikuti ujian'],
+  ['exam.result.self.view', 'exam_result', 'self_view', 'Lihat hasil ujian sendiri'],
+  ['exam.result.branch.view', 'exam_result', 'branch_view', 'Lihat hasil peserta cabang'],
+  ['exam.result.global.view', 'exam_result', 'global_view', 'Lihat hasil lintas cabang'],
+  ['leaderboard.view', 'leaderboard', 'view', 'Lihat leaderboard ujian'],
+  ['leaderboard.global.view', 'leaderboard', 'global_view', 'Lihat leaderboard nasional'],
+  ['proctor.monitor', 'proctor', 'monitor', 'Monitor live peserta'],
+  ['proctor.log.view', 'proctor', 'log_view', 'Lihat log kecurangan'],
+  ['proctor.terminate', 'proctor', 'terminate', 'Hentikan sesi ujian paksa'],
+  ['proctor.log.export', 'proctor', 'log_export', 'Export log proctoring'],
+  ['report.branch.view', 'report', 'branch_view', 'Lihat laporan cabang'],
+  ['report.global.view', 'report', 'global_view', 'Lihat laporan global'],
+  ['report.export', 'report', 'export', 'Export laporan'],
+  ['announcement.manage', 'announcement', 'manage', 'Buat dan kirim pengumuman'],
+  ['settings.manage', 'settings', 'manage', 'Kelola pengaturan sistem'],
+  ['system_log.view', 'system_log', 'view', 'Lihat log sistem'],
+  ['audit_log.view', 'audit_log', 'view', 'Lihat audit trail']
+] as const
+
+export const permissionsSeed = permissionRegistry.map(([code, module, action, description]) => ({
+  code,
+  module,
+  action,
+  description,
+  isSystem: true
+}))
+
+export const rolePermissionCodes = {
+  SUPER_ADMIN: permissionsSeed.map((permission) => permission.code),
+  BRANCH_ADMIN: [
+    'profile.self.view',
+    'profile.self.update',
+    'user.view.branch',
+    'user.create.teacher',
+    'user.create.student',
+    'user.update.branch',
+    'user.password.reset',
+    'user.deactivate',
+    'branch.view.detail',
+    'branch.report.view',
+    'package.view.public',
+    'order.branch.view',
+    'order.verify',
+    'subscription.manual.extend',
+    'subject.view',
+    'module.manage',
+    'material.manage.branch',
+    'exam.view',
+    'exam.manage.branch',
+    'exam.publish',
+    'question.manage',
+    'exam.result.branch.view',
+    'proctor.monitor',
+    'proctor.log.view',
+    'report.branch.view',
+    'announcement.manage'
+  ],
+  TEACHER: [
+    'profile.self.view',
+    'profile.self.update',
+    'branch.view.detail',
+    'package.view.public',
+    'subject.view',
+    'module.manage',
+    'material.manage.own',
+    'exam.view',
+    'exam.manage.own',
+    'question.manage',
+    'exam.result.branch.view',
+    'proctor.monitor'
+  ],
+  STUDENT: [
+    'profile.self.view',
+    'profile.self.update',
+    'branch.view.detail',
+    'package.view.public',
+    'order.create',
+    'order.self.view',
+    'subject.view',
+    'material.consume',
+    'material.progress.update',
+    'exam.view',
+    'exam.take',
+    'exam.result.self.view',
+    'leaderboard.view'
+  ]
+} as const

@@ -1,0 +1,112 @@
+/*
+Tujuan: Menyediakan styling global frontend fase 0 dengan Tailwind dan identitas visual proyek.
+Caller: Root layout SvelteKit.
+Dependensi: Tailwind CSS v4 CSS-first, token @theme, dan font Plus Jakarta Sans dari app.html.
+Main Functions: Mengaktifkan import Tailwind v4, token tema proyek, dan styling global body/selection.
+Side Effects: Mempengaruhi seluruh tampilan frontend lintas route.
+*/
+
+@import "tailwindcss";
+
+@theme {
+  /* Warna Kustom Neobrutalism */
+  --color-neo-yellow: #FACC15;
+  --color-neo-blue: #2563EB;
+  --color-neo-green: #10B981;
+  --color-neo-red: #EF4444;
+  --color-neo-pink: #F472B6;
+  --color-neo-purple: #7C3AED;
+  --color-neo-bg: #FEFCE8;
+  --color-neo-black: #000000;
+  --color-ink: #000000; /* Untuk compatibility dengan kode lama */
+
+  /* Tipografi */
+  --font-sans: "Plus Jakarta Sans", sans-serif;
+
+  /* Standarisasi Sudut (Radius) */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Hard Shadows Tokens */
+  --shadow-solid-sm: 2px 2px 0px #000000;
+  --shadow-solid-md: 4px 4px 0px #000000;
+  --shadow-solid-lg: 8px 8px 0px #000000;
+  --shadow-solid-xl: 12px 12px 0px #000000;
+}
+
+:root {
+  color-scheme: light;
+  --bg-shell: #FEFCE8;
+  --text-primary: #000000;
+  --surface-glass: #FFFFFF; /* Ganti glass dengan solid white */
+  --surface-border: #000000;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-shell); /* Solid Beige, tidak ada gradient */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: #FACC15;
+  color: #000000;
+}
+
+/* Premium Neobrutalist Diagonal Hazard Stripes */
+.bg-neo-stripes-yellow {
+  background: repeating-linear-gradient(
+    -45deg,
+    #000000,
+    #000000 8px,
+    #FACC15 8px,
+    #FACC15 16px
+  );
+}
+.bg-neo-stripes-blue {
+  background: repeating-linear-gradient(
+    -45deg,
+    #000000,
+    #000000 8px,
+    #2563EB 8px,
+    #2563EB 16px
+  );
+}
+.bg-neo-stripes-green {
+  background: repeating-linear-gradient(
+    -45deg,
+    #000000,
+    #000000 8px,
+    #10B981 8px,
+    #10B981 16px
+  );
+}
+.bg-neo-stripes-pink {
+  background: repeating-linear-gradient(
+    -45deg,
+    #000000,
+    #000000 8px,
+    #F472B6 8px,
+    #F472B6 16px
+  );
+}
+.bg-neo-stripes-slate {
+  background: repeating-linear-gradient(
+    -45deg,
+    #000000,
+    #000000 8px,
+    #94A3B8 8px,
+    #94A3B8 16px
+  );
+}

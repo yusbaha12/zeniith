@@ -1,0 +1,23 @@
+{
+  "name": "@lms-bimbel/shared",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "x-doc": {
+    "tujuan": "Menyediakan kontrak type dan constant bersama antara backend dan frontend.",
+    "caller": "apps/backend dan apps/frontend.",
+    "dependensi": "TypeScript compiler.",
+    "mainFunctions": "Export role, enum, dan event WebSocket bersama.",
+    "sideEffects": "Mempengaruhi typing lintas workspace."
+  }
+}

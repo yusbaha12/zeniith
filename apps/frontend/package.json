@@ -1,0 +1,46 @@
+{
+  "name": "@lms-bimbel/frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --host 0.0.0.0 --port 5173",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "lint": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "dependencies": {
+    "@lms-bimbel/shared": "workspace:*",
+    "@tiptap/core": "^3.7.2",
+    "@tiptap/extension-image": "^3.7.2",
+    "@tiptap/extension-placeholder": "^3.27.0",
+    "@tiptap/extension-table": "^3.7.2",
+    "@tiptap/extension-table-cell": "^3.7.2",
+    "@tiptap/extension-table-header": "^3.7.2",
+    "@tiptap/extension-table-row": "^3.7.2",
+    "@tiptap/extension-underline": "^3.7.2",
+    "@tiptap/starter-kit": "^3.7.2",
+    "gsap": "^3.15.0",
+    "katex": "^0.17.0",
+    "svelte": "^5.56.3"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-auto": "^7.0.1",
+    "@sveltejs/kit": "^2.65.1",
+    "@tailwindcss/vite": "^4.3.1",
+    "@types/katex": "^0.16.8",
+    "@types/node": "^25.9.3",
+    "svelte-check": "^4.6.0",
+    "tailwindcss": "^4.3.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16"
+  },
+  "x-doc": {
+    "tujuan": "Manifest frontend fase 0 untuk SvelteKit, Svelte 5, dan Tailwind CSS v4.",
+    "caller": "Vite dev server, SvelteKit build, Docker frontend image, developer lokal.",
+    "dependensi": "svelte, @sveltejs/kit, tailwindcss, @tailwindcss/vite, shared package.",
+    "mainFunctions": "Menyediakan dependency dan script utama frontend fase 0.",
+    "sideEffects": "Menjalankan dev server, build, preview, dan typecheck frontend."
+  }
+}

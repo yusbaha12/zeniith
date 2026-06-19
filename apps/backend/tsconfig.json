@@ -1,0 +1,25 @@
+/*
+Tujuan: Konfigurasi TypeScript backend ElysiaJS fase 1.
+Caller: Script build, dev, dan typecheck package backend.
+Dependensi: tsconfig.base.json root workspace.
+Main Functions: Menentukan target, include source, dan alias shared package untuk backend.
+Side Effects: Mengontrol validasi tipe dan output build backend.
+*/
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "../../",
+    "outDir": "dist",
+    "lib": [
+      "ES2022"
+    ],
+    "types": [
+      "bun",
+      "node"
+    ]
+  },
+  "include": [
+    "src/**/*.ts",
+    "drizzle.config.ts"
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "x-doc": "Tujuan: Menyimpan urutan migration backend termasuk fase 4 dan fondasi RBAC granular; Caller: drizzle-kit dan db:migrate; Dependensi: file SQL migration; Main Functions: melacak tag migration yang sudah digenerate; Side Effects: menentukan urutan apply migration.",
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1781562979166,
+      "tag": "0000_wandering_maelstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781569300803,
+      "tag": "0001_public_mister_fear",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781577264860,
+      "tag": "0002_sturdy_white_tiger",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781581115601,
+      "tag": "0003_natural_donald_blake",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781602013221,
+      "tag": "0004_long_the_initiative",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781604009865,
+      "tag": "0005_abnormal_mojo",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781606608603,
+      "tag": "0006_rich_wraith",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781831026529,
+      "tag": "0007_friendly_wild_child",
+      "breakpoints": true
+    }
+  ]
+}

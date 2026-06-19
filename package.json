@@ -1,0 +1,26 @@
+{
+  "name": "lms-bimbel",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter '*' dev",
+    "build": "bun run --filter '*' build",
+    "lint": "bun run --filter '*' lint",
+    "typecheck": "bun run --filter '*' typecheck",
+    "db:generate": "bash -lc 'set -a; source ./.env; set +a; cd apps/backend && bun run db:generate'",
+    "db:migrate": "bash -lc 'set -a; source ./.env; set +a; cd apps/backend && bun run db:migrate'",
+    "db:seed": "bash -lc 'set -a; source ./.env; set +a; cd apps/backend && bun run db:seed'"
+  },
+  "x-doc": {
+    "tujuan": "Workspace root monorepo fase 0 untuk menjalankan backend, frontend, dan shared package.",
+    "caller": "Developer lokal, Bun workspace runner, Docker workflow.",
+    "dependensi": "apps/backend, apps/frontend, packages/shared.",
+    "mainFunctions": "Mendefinisikan workspace dan script utama lintas fase termasuk command database yang mewarisi root .env.",
+    "sideEffects": "Menjalankan dev server, build, dan command database lintas package."
+  }
+}
