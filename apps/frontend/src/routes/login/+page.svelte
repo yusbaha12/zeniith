@@ -60,6 +60,7 @@ Side Effects: Melakukan login ke backend, memicu navigasi browser saat berhasil,
         type="email"
         bind:value={form.email}
         class={`w-full rounded-lg border-4 px-4 py-3 outline-none transition focus:border-neo-blue focus:shadow-solid-sm ${errors.email ? 'border-neo-red' : 'border-black'}`}
+        autofocus placeholder="Masuukkan email..."
       />
       {#if errors.email}
         <span class="mt-2 block text-sm text-red-600">{errors.email}</span>
@@ -73,6 +74,7 @@ Side Effects: Melakukan login ke backend, memicu navigasi browser saat berhasil,
           type={showPassword ? 'text' : 'password'}
           bind:value={form.password}
           class={`w-full rounded-lg border-4 pl-4 pr-12 py-3 outline-none transition focus:border-neo-blue focus:shadow-solid-sm ${errors.password ? 'border-neo-red' : 'border-black'}`}
+          placeholder="Masukkan password..."
         />
         <button
           type="button"

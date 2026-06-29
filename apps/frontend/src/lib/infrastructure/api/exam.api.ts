@@ -56,6 +56,17 @@ export const examApi = {
     apiClient.post<FrontendExamQuestion>(`/teacher/exams/${examId}/questions`, payload),
   updateTeacherQuestion: (questionId: string, payload: Record<string, unknown>) =>
     apiClient.patch<FrontendExamQuestion>(`/teacher/questions/${questionId}`, payload),
+  updateTeacherExam: (examId: string, payload: {
+    subjectId?: string | null
+    title: string
+    description?: string | null
+    instructions?: string | null
+    examType: 'TRYOUT' | 'LATIHAN' | 'MID_EXAM' | 'FINAL_EXAM'
+    durationMinutes: number
+    startsAt: string
+    endsAt: string
+    isPublished: boolean
+  }) => apiClient.patch<FrontendExamDetail>(`/teacher/exams/${examId}`, payload),
   getLiveProctorData: (examId: string) => apiClient.get<any[]>(`/teacher/exams/${examId}/proctor`),
   getProctorLog: (sessionId: string) => apiClient.get<any[]>(`/teacher/sessions/${sessionId}/proctor-log`),
   terminateSession: (sessionId: string) => apiClient.post<any>(`/teacher/sessions/${sessionId}/terminate`),
@@ -66,5 +77,31 @@ export const examApi = {
   superadminCreateQuestion: (examId: string, payload: Record<string, unknown>) =>
     apiClient.post<any>(`/superadmin/exams/${examId}/questions`, payload),
   superadminUpdateQuestion: (questionId: string, payload: Record<string, unknown>) =>
-    apiClient.patch<any>(`/superadmin/questions/${questionId}`, payload)
+    apiClient.patch<any>(`/superadmin/questions/${questionId}`, payload),
+  superadminCreateExam: (payload: {
+    branchId?: string | null
+    subjectId?: string | null
+    title: string
+    description?: string | null
+    instructions?: string | null
+    examType: 'TRYOUT' | 'LATIHAN' | 'MID_EXAM' | 'FINAL_EXAM'
+    durationMinutes: number
+    startsAt: string
+    endsAt: string
+    isPublished: boolean
+  }) => apiClient.post<FrontendExamDetail>('/superadmin/exams', payload),
+  superadminUpdateExam: (examId: string, payload: {
+    branchId?: string | null
+    subjectId?: string | null
+    title: string
+    description?: string | null
+    instructions?: string | null
+    examType: 'TRYOUT' | 'LATIHAN' | 'MID_EXAM' | 'FINAL_EXAM'
+    durationMinutes: number
+    startsAt: string
+    endsAt: string
+    isPublished: boolean
+  }) => apiClient.patch<FrontendExamDetail>(`/superadmin/exams/${examId}`, payload),
+  superadminDeleteExam: (examId: string) => apiClient.delete<any>(`/superadmin/exams/${examId}`)
 }
+

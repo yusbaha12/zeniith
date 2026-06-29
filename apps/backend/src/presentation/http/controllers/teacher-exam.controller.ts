@@ -20,6 +20,7 @@ import type { CreateQuestionUseCase } from '../../../application/use-cases/exam/
 import type { GetTeacherExamDetailUseCase } from '../../../application/use-cases/exam/get-teacher-exam-detail.usecase'
 import type { ListTeacherExamsUseCase } from '../../../application/use-cases/exam/list-teacher-exams.usecase'
 import type { UpdateQuestionUseCase } from '../../../application/use-cases/exam/update-question.usecase'
+import type { UpdateExamUseCase } from '../../../application/use-cases/exam/update-exam.usecase'
 import { withPermissions } from '../middlewares/permission.middleware'
 import { rbac } from '../middlewares/rbac.middleware'
 
@@ -29,7 +30,8 @@ export const createTeacherExamController = (
   getTeacherExamDetailUseCase: GetTeacherExamDetailUseCase,
   createExamUseCase: CreateExamUseCase,
   createQuestionUseCase: CreateQuestionUseCase,
-  updateQuestionUseCase: UpdateQuestionUseCase
+  updateQuestionUseCase: UpdateQuestionUseCase,
+  updateExamUseCase: UpdateExamUseCase
 ) =>
   new Elysia({ prefix: '/api/teacher' })
     .use(authMiddleware)
@@ -110,3 +112,26 @@ export const createTeacherExamController = (
       params: QuestionIdParamsDto,
       body: UpdateQuestionDto
     })
+    .patch('/exams/:id', withPermissions(['exam.manage.own'], async ({ params, body, user }: any) => ({
+      success: true,
+      data: await updateExamUseCase.execute({
+        examId: params.id,
+        userId: user.id,
+        role: 'TEACHER',
+        branchId: user.branchId,
+        subjectId: body.subjectId ?? null,
+        title: body.title,
+        description: body.description ?? null,
+        instructions: body.instructions ?? null,
+        examType: body.examType,
+        durationMinutes: Number(body.durationMinutes),
+        startsAt: new Date(body.startsAt),
+        endsAt: new Date(body.endsAt),
+        isPublished: body.isPublished
+      }),
+      message: 'Ujian berhasil diperbarui'
+    })), {
+      params: ExamIdParamsDto,
+      body: CreateExamDto
+    })
+

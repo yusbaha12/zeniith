@@ -1,9 +1,9 @@
 <!--
-Tujuan: Menyediakan halaman checkout paket fase 2 untuk murid dengan upload bukti transfer.
+Tujuan: Menyediakan halaman checkout paket fase 2 untuk murid — mendukung upload bukti (transfer bank) dan redirect ke detail order untuk pembayaran otomatis Midtrans (QRIS/VA).
 Caller: Route `/paket/[id]/checkout`.
 Dependensi: Package API, Order API, auth guard student, dan toast notification.
-Main Functions: Menampilkan ringkasan paket, memvalidasi form checkout, membuat order multipart, dan kirim feedback via toast.
-Side Effects: Melakukan HTTP call ke backend untuk detail paket dan pembuatan order, menampilkan toast, dan memicu redirect.
+Main Functions: Menampilkan ringkasan paket, memvalidasi form checkout, membuat order multipart, redirect ke halaman detail order untuk proses pembayaran lanjutan.
+Side Effects: Melakukan HTTP call ke backend untuk detail paket dan pembuatan order, menampilkan toast, dan memicu redirect ke /student/pembelian/[id].
 -->
 
 <script lang="ts">
@@ -84,11 +84,19 @@ Side Effects: Melakukan HTTP call ke backend untuk detail paket dan pembuatan or
       }
 
       const result = await orderApi.create(payload)
-      notify.success(`Order ${result.orderCode} berhasil dibuat. Menunggu verifikasi admin cabang.`)
 
+      const isGatewayOrder = form.paymentMethod === 'QRIS' || form.paymentMethod === 'VIRTUAL_ACCOUNT'
+
+      if (isGatewayOrder) {
+        notify.success(`Order ${result.orderCode} berhasil dibuat. Silakan selesaikan pembayaran.`)
+      } else {
+        notify.success(`Order ${result.orderCode} berhasil dibuat. Menunggu verifikasi admin cabang.`)
+      }
+
+      // Redirect ke halaman detail order agar murid bisa bayar / cek status
       setTimeout(() => {
-        void goto('/student/pembelian')
-      }, 900)
+        void goto(`/student/pembelian/${result.id}`)
+      }, 600)
     } catch (error) {
       notify.error(error instanceof Error ? error.message : 'Checkout gagal diproses')
     } finally {
@@ -151,18 +159,25 @@ Side Effects: Melakukan HTTP call ke backend untuk detail paket dan pembuatan or
 
         <div>
           <label class="block text-xs font-black text-black uppercase tracking-wider">Bukti Pembayaran</label>
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp,application/pdf"
-            class={`mt-2 w-full rounded-xl border-[3px] bg-white px-4 py-3 text-sm font-black text-black outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5 ${errors.proofFile ? 'border-neo-red' : 'border-black'}`}
-            onchange={(event) => {
-              const target = event.currentTarget as HTMLInputElement
-              selectedFile = target.files?.[0] ?? null
-            }}
-          />
-          <span class="mt-2 block text-xs font-bold text-black/40">Unggah JPG, PNG, WEBP, atau PDF. Maksimal 50 MB.</span>
-          {#if errors.proofFile}
-            <span class="mt-2 block text-xs font-bold text-neo-red">{errors.proofFile}</span>
+          {#if form.paymentMethod === 'BANK_TRANSFER'}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,application/pdf"
+              class={`mt-2 w-full rounded-xl border-[3px] bg-white px-4 py-3 text-sm font-black text-black outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5 ${errors.proofFile ? 'border-neo-red' : 'border-black'}`}
+              onchange={(event) => {
+                const target = event.currentTarget as HTMLInputElement
+                selectedFile = target.files?.[0] ?? null
+              }}
+            />
+            <span class="mt-2 block text-xs font-bold text-black/40">Unggah JPG, PNG, WEBP, atau PDF. Maksimal 50 MB.</span>
+            {#if errors.proofFile}
+              <span class="mt-2 block text-xs font-bold text-neo-red">{errors.proofFile}</span>
+            {/if}
+          {:else}
+            <div class="mt-2 rounded-xl border-2 border-dashed border-black bg-neo-blue/10 px-4 py-5 text-center text-xs font-bold text-black/60">
+              Pembayaran {form.paymentMethod === 'QRIS' ? 'QRIS' : 'Virtual Account'} diproses otomatis via Midtrans.<br />
+              Tidak perlu upload bukti pembayaran.
+            </div>
           {/if}
         </div>
 

@@ -1,7 +1,7 @@
 /*
-Tujuan: Menyediakan endpoint administrasi global fase 7 untuk Super Admin (CRUD Cabang, CRUD Pengguna, CRUD Paket, CRUD Kurikulum, Laporan Nasional, Settings, dan Audit Logs).
+Tujuan: Menyediakan endpoint administrasi global fase 7 untuk Super Admin (CRUD Cabang, Pengguna, Paket, Kurikulum, Materi, Ujian, Laporan, Settings, dan Audit Logs).
 Caller: Bootstrap backend.
-Dependensi: Auth middleware, permission guard, dan use cases terkait.
+Dependensi: Auth middleware, permission guard, DTO material/exam/superadmin, dan use cases terkait.
 Main Functions: Menyediakan route secure `/api/superadmin/*` dengan validation body & parameters.
 Side Effects: Membaca/menulis database sesuai use case.
 */
@@ -70,15 +70,48 @@ import type { SuperadminListExamsUseCase } from '../../../application/use-cases/
 import type { SuperadminGetExamDetailUseCase } from '../../../application/use-cases/superadmin/get-exam-detail.usecase'
 import type { SuperadminCreateQuestionUseCase } from '../../../application/use-cases/superadmin/create-question.usecase'
 import type { SuperadminUpdateQuestionUseCase } from '../../../application/use-cases/superadmin/update-question.usecase'
+import type { CreateExamUseCase } from '../../../application/use-cases/exam/create-exam.usecase'
+import type { UpdateExamUseCase } from '../../../application/use-cases/exam/update-exam.usecase'
+import type { DeleteExamUseCase } from '../../../application/use-cases/exam/delete-exam.usecase'
+
+import {
+  MaterialIdParamsDto,
+  SaveMaterialDto,
+  UpdateMaterialDto,
+  UploadMaterialImageDto
+} from '../../../application/dto/material.dto'
+
+import type { CreateMaterialUseCase } from '../../../application/use-cases/material/create-material.usecase'
+import type { UploadMaterialImageUseCase } from '../../../application/use-cases/material/upload-material-image.usecase'
+import type { SuperadminListMaterialsUseCase } from '../../../application/use-cases/superadmin/list-materials.usecase'
+import type { SuperadminGetMaterialDetailUseCase } from '../../../application/use-cases/superadmin/get-material-detail.usecase'
+import type { SuperadminUpdateMaterialUseCase } from '../../../application/use-cases/superadmin/update-material.usecase'
+import type { SuperadminDeleteMaterialUseCase } from '../../../application/use-cases/superadmin/delete-material.usecase'
 
 import {
   CreateQuestionDto,
   ExamIdParamsDto,
   QuestionIdParamsDto,
-  UpdateQuestionDto
+  UpdateQuestionDto,
+  CreateExamDto,
+  ExamTypeDto
 } from '../../../application/dto/exam.dto'
 
 import { withPermissions } from '../middlewares/permission.middleware'
+
+const parseContentJson = (contentJson: string | Record<string, unknown> | undefined): Record<string, unknown> | null => {
+  if (!contentJson) {
+    return null
+  }
+
+  if (typeof contentJson === 'object') {
+    return contentJson
+  }
+
+  return JSON.parse(contentJson) as Record<string, unknown>
+}
+
+const parseBooleanString = (value: string | undefined): boolean => value === 'true'
 
 export const createSuperAdminController = (
   authMiddleware: any,
@@ -117,10 +150,19 @@ export const createSuperAdminController = (
   getSystemSettingsUseCase: GetSystemSettingsUseCase,
   updateSystemSettingsUseCase: UpdateSystemSettingsUseCase,
   getAuditLogsUseCase: GetAuditLogsUseCase,
+  superadminListMaterialsUseCase: SuperadminListMaterialsUseCase,
+  superadminGetMaterialDetailUseCase: SuperadminGetMaterialDetailUseCase,
+  createMaterialUseCase: CreateMaterialUseCase,
+  superadminUpdateMaterialUseCase: SuperadminUpdateMaterialUseCase,
+  superadminDeleteMaterialUseCase: SuperadminDeleteMaterialUseCase,
+  uploadMaterialImageUseCase: UploadMaterialImageUseCase,
   superadminListExamsUseCase: SuperadminListExamsUseCase,
   superadminGetExamDetailUseCase: SuperadminGetExamDetailUseCase,
   superadminCreateQuestionUseCase: SuperadminCreateQuestionUseCase,
-  superadminUpdateQuestionUseCase: SuperadminUpdateQuestionUseCase
+  superadminUpdateQuestionUseCase: SuperadminUpdateQuestionUseCase,
+  createExamUseCase: CreateExamUseCase,
+  updateExamUseCase: UpdateExamUseCase,
+  deleteExamUseCase: DeleteExamUseCase
 ) =>
   new Elysia({ prefix: '/api/superadmin' })
     .use(authMiddleware)
@@ -389,7 +431,8 @@ export const createSuperAdminController = (
           name: body.name,
           description: body.description ?? null,
           sortOrder: body.sortOrder ?? 0,
-          isActive: body.isActive ?? true
+          isActive: body.isActive ?? true,
+          teacherIds: body.teacherIds ?? []
         })
         return { success: true, data, message: 'Mata pelajaran berhasil dibuat' }
       }),
@@ -403,7 +446,8 @@ export const createSuperAdminController = (
           name: body.name,
           description: body.description,
           sortOrder: body.sortOrder,
-          isActive: body.isActive
+          isActive: body.isActive,
+          teacherIds: body.teacherIds
         })
         return { success: true, data, message: 'Mata pelajaran berhasil diperbarui' }
       }),
@@ -460,6 +504,96 @@ export const createSuperAdminController = (
         return { success: true, message: 'Modul berhasil dihapus' }
       }),
       { params: t.Object({ id: t.String({ format: 'uuid' }) }) }
+    )
+
+    // ==========================================
+    // 4B. MATERIAL GLOBAL MANAGEMENT
+    // ==========================================
+    .get(
+      '/materials',
+      withPermissions(['material.manage.branch'], async ({ query }) => {
+        const data = await superadminListMaterialsUseCase.execute({
+          moduleId: query.moduleId,
+          subjectId: query.subjectId,
+          isPublished: query.isPublished === 'true' ? true : query.isPublished === 'false' ? false : undefined,
+          searchQuery: query.q
+        })
+        return { success: true, data, message: 'Daftar semua materi berhasil diambil' }
+      }),
+      {
+        query: t.Object({
+          moduleId: t.Optional(t.String({ format: 'uuid' })),
+          subjectId: t.Optional(t.String({ format: 'uuid' })),
+          isPublished: t.Optional(t.Union([t.Literal('true'), t.Literal('false')])),
+          q: t.Optional(t.String({ maxLength: 120 }))
+        })
+      }
+    )
+    .get(
+      '/materials/:id',
+      withPermissions(['material.manage.branch'], async ({ params }) => {
+        const data = await superadminGetMaterialDetailUseCase.execute(params.id)
+        return { success: true, data, message: 'Detail materi berhasil diambil' }
+      }),
+      { params: MaterialIdParamsDto }
+    )
+    .post(
+      '/materials',
+      withPermissions(['material.manage.branch'], async ({ body, user }: any) => {
+        const data = await createMaterialUseCase.execute({
+          teacherId: user.id,
+          branchId: user.branchId ?? null,
+          moduleId: body.moduleId,
+          title: body.title,
+          summary: body.summary ?? null,
+          materialType: body.materialType,
+          contentJson: parseContentJson(body.contentJson),
+          estimatedDurationMinutes: body.estimatedDurationMinutes ? Number(body.estimatedDurationMinutes) : null,
+          sortOrder: body.sortOrder ? Number(body.sortOrder) : 0,
+          isPublished: parseBooleanString(body.isPublished),
+          attachmentFile: body.attachmentFile,
+          enforceTeacherPic: false
+        })
+        return { success: true, data, message: 'Materi berhasil dibuat oleh admin' }
+      }),
+      { body: SaveMaterialDto }
+    )
+    .patch(
+      '/materials/:id',
+      withPermissions(['material.manage.branch'], async ({ params, body }) => {
+        const data = await superadminUpdateMaterialUseCase.execute({
+          materialId: params.id,
+          title: body.title,
+          summary: body.summary ?? null,
+          materialType: body.materialType,
+          contentJson: parseContentJson(body.contentJson),
+          estimatedDurationMinutes: body.estimatedDurationMinutes ? Number(body.estimatedDurationMinutes) : null,
+          sortOrder: body.sortOrder ? Number(body.sortOrder) : 0,
+          isPublished: parseBooleanString(body.isPublished),
+          attachmentFile: body.attachmentFile
+        })
+        return { success: true, data, message: 'Materi berhasil diperbarui oleh admin' }
+      }),
+      {
+        params: MaterialIdParamsDto,
+        body: UpdateMaterialDto
+      }
+    )
+    .delete(
+      '/materials/:id',
+      withPermissions(['material.manage.branch'], async ({ params }) => {
+        const data = await superadminDeleteMaterialUseCase.execute(params.id)
+        return { success: true, data, message: 'Materi berhasil dihapus' }
+      }),
+      { params: MaterialIdParamsDto }
+    )
+    .post(
+      '/materials/assets/image',
+      withPermissions(['material.manage.branch'], async ({ body }) => {
+        const data = await uploadMaterialImageUseCase.execute(body.file)
+        return { success: true, data, message: 'Gambar materi berhasil diunggah' }
+      }),
+      { body: UploadMaterialImageDto }
     )
 
     // ==========================================
@@ -574,5 +708,88 @@ export const createSuperAdminController = (
       {
         params: QuestionIdParamsDto,
         body: UpdateQuestionDto
+      }
+    )
+    .post(
+      '/exams',
+      withPermissions(['exam.manage.branch'], async ({ body, user }: any) => {
+        const data = await createExamUseCase.execute({
+          teacherId: user.id,
+          branchId: body.branchId ?? null,
+          subjectId: body.subjectId ?? null,
+          title: body.title,
+          description: body.description ?? null,
+          instructions: body.instructions ?? null,
+          examType: body.examType,
+          durationMinutes: Number(body.durationMinutes),
+          startsAt: new Date(body.startsAt),
+          endsAt: new Date(body.endsAt),
+          isPublished: body.isPublished
+        })
+        return { success: true, data, message: 'Ujian berhasil dibuat oleh admin' }
+      }),
+      {
+        body: t.Object({
+          branchId: t.Optional(t.Nullable(t.String({ format: 'uuid' }))),
+          subjectId: t.Optional(t.Nullable(t.String({ format: 'uuid' }))),
+          title: t.String({ minLength: 3, maxLength: 180 }),
+          description: t.Optional(t.Nullable(t.String({ maxLength: 1000 }))),
+          instructions: t.Optional(t.Nullable(t.String({ maxLength: 4000 }))),
+          examType: ExamTypeDto,
+          durationMinutes: t.Numeric({ minimum: 1, maximum: 600 }),
+          startsAt: t.String({ format: 'date-time' }),
+          endsAt: t.String({ format: 'date-time' }),
+          isPublished: t.Boolean()
+        })
+      }
+    )
+    .patch(
+      '/exams/:id',
+      withPermissions(['exam.manage.branch'], async ({ params, body, user }: any) => {
+        const data = await updateExamUseCase.execute({
+          examId: params.id,
+          userId: user.id,
+          role: 'SUPERADMIN',
+          branchId: body.branchId ?? null,
+          subjectId: body.subjectId ?? null,
+          title: body.title,
+          description: body.description ?? null,
+          instructions: body.instructions ?? null,
+          examType: body.examType,
+          durationMinutes: Number(body.durationMinutes),
+          startsAt: new Date(body.startsAt),
+          endsAt: new Date(body.endsAt),
+          isPublished: body.isPublished
+        })
+        return { success: true, data, message: 'Ujian berhasil diperbarui oleh admin' }
+      }),
+      {
+        params: ExamIdParamsDto,
+        body: t.Object({
+          branchId: t.Optional(t.Nullable(t.String({ format: 'uuid' }))),
+          subjectId: t.Optional(t.Nullable(t.String({ format: 'uuid' }))),
+          title: t.String({ minLength: 3, maxLength: 180 }),
+          description: t.Optional(t.Nullable(t.String({ maxLength: 1000 }))),
+          instructions: t.Optional(t.Nullable(t.String({ maxLength: 4000 }))),
+          examType: ExamTypeDto,
+          durationMinutes: t.Numeric({ minimum: 1, maximum: 600 }),
+          startsAt: t.String({ format: 'date-time' }),
+          endsAt: t.String({ format: 'date-time' }),
+          isPublished: t.Boolean()
+        })
+      }
+    )
+    .delete(
+      '/exams/:id',
+      withPermissions(['exam.manage.branch'], async ({ params, user }: any) => {
+        await deleteExamUseCase.execute({
+          examId: params.id,
+          userId: user.id,
+          role: 'SUPERADMIN'
+        })
+        return { success: true, message: 'Ujian berhasil dihapus' }
+      }),
+      {
+        params: ExamIdParamsDto
       }
     )

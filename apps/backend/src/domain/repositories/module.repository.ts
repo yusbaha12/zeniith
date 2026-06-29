@@ -1,8 +1,8 @@
 /*
-Tujuan: Mendefinisikan kontrak repository subject dan module fase 3 untuk ruang belajar.
-Caller: Use case daftar subject/module dan teacher form materi.
+Tujuan: Mendefinisikan kontrak repository subject, module, dan PIC guru fase 3/7 untuk ruang belajar.
+Caller: Use case daftar subject/module, teacher form materi, dan superadmin curriculum management.
 Dependensi: ModuleEntity.
-Main Functions: Menyediakan operasi baca subject aktif dan module per subject.
+Main Functions: Menyediakan operasi baca/tulis subject, module, assignment guru, dan pengecekan akses guru.
 Side Effects: Tidak ada; file kontrak interface.
 */
 
@@ -15,10 +15,12 @@ export interface SubjectListItem {
   description: string | null
   sortOrder: number
   isActive: boolean
+  teacherIds?: string[]
 }
 
 export interface IModuleRepository {
   listActiveSubjects(): Promise<SubjectListItem[]>
+  listActiveSubjectsForTeacher(teacherId: string): Promise<SubjectListItem[]>
   listModulesBySubjectId(subjectId: string): Promise<ModuleEntity[]>
   findModuleById(moduleId: string): Promise<ModuleEntity | null>
   listAllSubjects(): Promise<SubjectListItem[]>
@@ -27,6 +29,7 @@ export interface IModuleRepository {
     description?: string | null
     sortOrder?: number
     isActive?: boolean
+    teacherIds?: string[]
   }): Promise<SubjectListItem>
   updateSubject(
     id: string,
@@ -35,9 +38,12 @@ export interface IModuleRepository {
       description: string | null
       sortOrder: number
       isActive: boolean
+      teacherIds: string[]
     }>
   ): Promise<SubjectListItem>
   deleteSubject(id: string): Promise<void>
+  listTeacherIdsBySubjectId(subjectId: string): Promise<string[]>
+  teacherCanAccessSubject(subjectId: string, teacherId: string): Promise<boolean>
   createModule(input: {
     subjectId: string
     title: string

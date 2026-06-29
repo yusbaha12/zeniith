@@ -1,8 +1,8 @@
 /*
-Tujuan: Mendefinisikan kontrak repository order fase 2 untuk checkout murid dan verifikasi admin.
-Caller: Use case purchase package, riwayat order, dan verifikasi pembayaran.
+Tujuan: Mendefinisikan kontrak repository order fase 2 untuk checkout murid, verifikasi admin, dan Midtrans gateway.
+Caller: Use case purchase package, riwayat order, verifikasi pembayaran, dan Midtrans notification handler.
 Dependensi: OrderEntity domain dan enum shared.
-Main Functions: Menyediakan operasi create, list, baca detail, dan update status order.
+Main Functions: Menyediakan operasi create, list, baca detail, update status order, dan update data Midtrans.
 Side Effects: Tidak ada; file kontrak interface.
 */
 
@@ -31,6 +31,14 @@ export interface VerifyOrderInput {
   verifiedAt: Date
 }
 
+export interface UpdateMidtransInput {
+  midtransSnapToken?: string | null
+  midtransTransactionId?: string | null
+  midtransPaymentType?: string | null
+  status?: Extract<OrderStatus, 'PAID' | 'REJECTED' | 'EXPIRED'>
+  verifiedAt?: Date | null
+}
+
 export interface OrderListItem {
   id: string
   userId: string
@@ -55,9 +63,11 @@ export interface OrderListItem {
 export interface IOrderRepository {
   create(input: CreateOrderInput, executor?: unknown): Promise<OrderEntity>
   findById(id: string): Promise<OrderEntity | null>
+  findByMidtransTransactionId(transactionId: string): Promise<OrderEntity | null>
   findListItemById(id: string): Promise<OrderListItem | null>
   listByUser(userId: string): Promise<OrderListItem[]>
   listByBranch(branchId: string, status?: Extract<OrderStatus, 'PENDING' | 'PAID' | 'REJECTED'>): Promise<OrderListItem[]>
   listAll(status?: Extract<OrderStatus, 'PENDING' | 'PAID' | 'REJECTED'>): Promise<OrderListItem[]>
   updateVerification(id: string, input: VerifyOrderInput, executor?: unknown): Promise<OrderEntity>
+  updateMidtransData(id: string, input: UpdateMidtransInput, executor?: unknown): Promise<OrderEntity>
 }

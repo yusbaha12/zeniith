@@ -1,3 +1,11 @@
+/*
+Tujuan: Menyediakan DTO validasi Superadmin untuk cabang, pengguna, paket, kurikulum, assignment PIC guru, dan settings.
+Caller: SuperAdminController.
+Dependensi: Elysia validator `t`.
+Main Functions: Memvalidasi payload CRUD administrasi global sebelum masuk use case.
+Side Effects: Tidak ada; hanya schema validasi runtime.
+*/
+
 import { t } from 'elysia'
 
 // Branch CRUD DTOs
@@ -96,14 +104,16 @@ export const CreateSubjectDto = t.Object({
   name: t.String({ minLength: 2, maxLength: 120 }),
   description: t.Optional(t.String()),
   sortOrder: t.Optional(t.Number()),
-  isActive: t.Optional(t.Boolean())
+  isActive: t.Optional(t.Boolean()),
+  teacherIds: t.Optional(t.Array(t.String({ format: 'uuid' })))
 })
 
 export const UpdateSubjectDto = t.Object({
   name: t.Optional(t.String({ minLength: 2, maxLength: 120 })),
   description: t.Optional(t.String()),
   sortOrder: t.Optional(t.Number()),
-  isActive: t.Optional(t.Boolean())
+  isActive: t.Optional(t.Boolean()),
+  teacherIds: t.Optional(t.Array(t.String({ format: 'uuid' })))
 })
 
 // Curriculum Module CRUD DTOs

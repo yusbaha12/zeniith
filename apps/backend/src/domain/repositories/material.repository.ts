@@ -1,8 +1,8 @@
 /*
-Tujuan: Mendefinisikan kontrak repository materi dan progress fase 3 untuk student dan teacher.
-Caller: Use case list/detail material, track progress, dan teacher CRUD materi.
+Tujuan: Mendefinisikan kontrak repository materi dan progress fase 3 untuk student, teacher, dan superadmin.
+Caller: Use case list/detail material, track progress, teacher CRUD materi, dan superadmin material management.
 Dependensi: MaterialEntity dan MaterialType shared.
-Main Functions: Menyediakan operasi baca/tulis materi, progress, dan listing teacher secara efisien.
+Main Functions: Menyediakan operasi baca/tulis materi, progress, listing teacher, dan listing global materi secara efisien.
 Side Effects: Tidak ada; file kontrak interface.
 */
 
@@ -31,6 +31,7 @@ export interface TeacherMaterialListItem {
   moduleTitle: string
   subjectId: string
   subjectName: string
+  branchId: string | null
   title: string
   slug: string
   summary: string | null
@@ -83,6 +84,7 @@ export interface IMaterialRepository {
   findById(materialId: string): Promise<MaterialEntity | null>
   findTeacherListItemById(materialId: string): Promise<TeacherMaterialListItem | null>
   listByTeacher(teacherId: string, branchId: string | null): Promise<TeacherMaterialListItem[]>
+  listAllForAdmin(filters?: { moduleId?: string; subjectId?: string; isPublished?: boolean; searchQuery?: string }): Promise<TeacherMaterialListItem[]>
   create(input: CreateMaterialInput, executor?: unknown): Promise<MaterialEntity>
   update(materialId: string, input: UpdateMaterialInput, executor?: unknown): Promise<MaterialEntity>
   delete(materialId: string, executor?: unknown): Promise<void>

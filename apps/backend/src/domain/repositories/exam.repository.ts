@@ -32,6 +32,9 @@ export interface TeacherExamListItem extends ExamSummary {
   subjectName: string | null
   participantCount: number
   updatedAt: Date
+  branchId: string | null
+  branchName: string | null
+  instructions: string | null
 }
 
 export interface ExamQuestionAnswerSnapshot {
@@ -131,6 +134,8 @@ export interface IExamRepository {
   findResultBySessionId(sessionId: string): Promise<ExamResultSummary | null>
   listAnswerSnapshots(sessionId: string): Promise<ExamQuestionAnswerSnapshot[]>
   createExam(input: CreateExamInput, executor?: unknown): Promise<ExamEntity>
+  updateExam(examId: string, input: Partial<CreateExamInput>, executor?: unknown): Promise<ExamEntity>
+  deleteExam(examId: string, executor?: unknown): Promise<void>
   createQuestion(input: CreateQuestionInput, executor?: unknown): Promise<ExamQuestion>
   updateQuestion(questionId: string, input: UpdateQuestionInput, executor?: unknown): Promise<ExamQuestion>
   createSession(input: CreateExamSessionInput, executor?: unknown): Promise<ExamSessionSummary>

@@ -161,6 +161,9 @@ export interface FrontendTeacherExamListItem {
   isPublished: boolean
   participantCount: number
   updatedAt: string
+  branchId: string | null
+  branchName: string | null
+  instructions: string | null
 }
 
 export interface FrontendTeacherExamDetail {

@@ -1,5 +1,5 @@
 /*
-Tujuan: Memetakan row tabel orders menjadi OrderEntity domain fase 2.
+Tujuan: Memetakan row tabel orders menjadi OrderEntity domain fase 2 termasuk field Midtrans gateway.
 Caller: Order repository Drizzle.
 Dependensi: OrderEntity dan MoneyVO.
 Main Functions: Menjaga transformasi DB ke domain tetap terpusat dan konsisten.
@@ -31,6 +31,9 @@ export class OrderMapper {
       row.verifiedBy,
       row.verifiedAt,
       row.expiresAt,
+      row.midtransSnapToken,
+      row.midtransTransactionId,
+      row.midtransPaymentType,
       row.createdAt
     )
   }

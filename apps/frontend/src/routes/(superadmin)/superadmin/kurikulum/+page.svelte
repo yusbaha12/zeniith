@@ -1,8 +1,8 @@
 <!--
 Tujuan: Menyediakan halaman kelola kurikulum global (mata pelajaran dan modul) untuk super admin.
 Caller: Route `/superadmin/kurikulum`.
-Dependensi: Svelte 5 Runes, SvelteKit data, fetch API response helper, toast notification, dan dialog SweetAlert2.
-Main Functions: CRUD mata pelajaran dan modul secara terstruktur per subject dengan feedback via toast dan konfirmasi dialog.
+Dependensi: Svelte 5 Runes, SvelteKit data, fetch API response helper, toast notification, dialog SweetAlert2, dan data guru.
+Main Functions: CRUD mata pelajaran, assignment PIC guru, dan modul secara terstruktur per subject dengan feedback via toast dan konfirmasi dialog.
 Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilkan toast/dialog, dan menampilkan hint validasi inline pada form modal.
 -->
 
@@ -16,6 +16,7 @@ Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilka
   import Select from '$lib/components/ui/Select.svelte'
 
   let { data } = $props()
+  const teachers = $derived(data.teachers ?? [])
 
   // Search & Filter state
   let searchQuery = $state(page.url.searchParams.get('q') ?? '')
@@ -113,6 +114,7 @@ Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilka
   let description = $state('')
   let sortOrder = $state<number>(0)
   let isActive = $state(true)
+  let selectedTeacherIds = $state<string[]>([])
 
   // Accordion open state per Subject ID
   let openSubjectId = $state<string | null>(null)
@@ -127,6 +129,7 @@ Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilka
     description = ''
     sortOrder = 0
     isActive = true
+    selectedTeacherIds = []
     isAddSubjModalOpen = true
   }
 
@@ -136,7 +139,19 @@ Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilka
     description = subj.description ?? ''
     sortOrder = subj.sortOrder ?? 0
     isActive = subj.isActive
+    selectedTeacherIds = [...(subj.teacherIds ?? [])]
     isEditSubjModalOpen = true
+  }
+
+  const toggleTeacher = (teacherId: string) => {
+    selectedTeacherIds = selectedTeacherIds.includes(teacherId)
+      ? selectedTeacherIds.filter((id) => id !== teacherId)
+      : [...selectedTeacherIds, teacherId]
+  }
+
+  const teacherNames = (teacherIds: string[] = []) => {
+    const teacherMap = new Map(teachers.map((teacher: any) => [teacher.id, teacher.name]))
+    return teacherIds.map((teacherId) => teacherMap.get(teacherId)).filter(Boolean).join(', ')
   }
 
   const handleCreateSubject = async (e: SubmitEvent) => {
@@ -147,7 +162,7 @@ Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilka
         method: 'POST',
         credentials: 'include',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name, description, sortOrder, isActive })
+        body: JSON.stringify({ name, description, sortOrder, isActive, teacherIds: selectedTeacherIds })
       })
 
       await readApiData(res, 'Gagal membuat mata pelajaran')
@@ -170,7 +185,7 @@ Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilka
         method: 'PATCH',
         credentials: 'include',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name, description, sortOrder, isActive })
+        body: JSON.stringify({ name, description, sortOrder, isActive, teacherIds: selectedTeacherIds })
       })
 
       await readApiData(res, 'Gagal memperbarui mata pelajaran')
@@ -417,6 +432,9 @@ Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilka
               <div>
                 <h3 class="text-lg font-black uppercase text-ink">{subj.name}</h3>
                 <p class="text-xs font-bold text-ink/50">{subj.description || 'Tidak ada deskripsi'}</p>
+                <p class="mt-1 text-[11px] font-black uppercase text-ink/50">
+                  PIC Guru: {subj.teacherIds?.length ? teacherNames(subj.teacherIds) : 'Semua guru'}
+                </p>
               </div>
             </button>
 
@@ -546,6 +564,30 @@ Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilka
           ></textarea>
         </div>
 
+        <div>
+          <div class="flex items-center justify-between gap-3">
+            <label class="block text-xs font-black text-black uppercase tracking-wider">PIC Guru</label>
+            <span class="text-[10px] font-black uppercase text-ink/50">Kosong = semua guru</span>
+          </div>
+          <div class="mt-2 max-h-44 space-y-2 overflow-y-auto rounded-xl border-[3px] border-black bg-white p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+            {#if teachers.length === 0}
+              <p class="text-xs font-bold text-ink/50">Belum ada guru aktif.</p>
+            {:else}
+              {#each teachers as teacher}
+                <label class="flex cursor-pointer items-center gap-3 rounded-lg border-2 border-black bg-slate-50 px-3 py-2 text-xs font-black uppercase text-black">
+                  <input
+                    type="checkbox"
+                    checked={selectedTeacherIds.includes(teacher.id)}
+                    onchange={() => toggleTeacher(teacher.id)}
+                    class="h-4 w-4 rounded border-2 border-black accent-black"
+                  />
+                  <span>{teacher.name}</span>
+                </label>
+              {/each}
+            {/if}
+          </div>
+        </div>
+
         <div class="mt-8 flex gap-3">
           <button
             type="button"
@@ -606,6 +648,30 @@ Side Effects: Melakukan HTTP call CRUD kurikulum, memicu reload data, menampilka
             data-validation-rule="Opsional, ringkas cakupan materi utama"
             class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:bg-neo-yellow/5"
           ></textarea>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between gap-3">
+            <label class="block text-xs font-black text-black uppercase tracking-wider">PIC Guru</label>
+            <span class="text-[10px] font-black uppercase text-ink/50">Kosong = semua guru</span>
+          </div>
+          <div class="mt-2 max-h-44 space-y-2 overflow-y-auto rounded-xl border-[3px] border-black bg-white p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+            {#if teachers.length === 0}
+              <p class="text-xs font-bold text-ink/50">Belum ada guru aktif.</p>
+            {:else}
+              {#each teachers as teacher}
+                <label class="flex cursor-pointer items-center gap-3 rounded-lg border-2 border-black bg-slate-50 px-3 py-2 text-xs font-black uppercase text-black">
+                  <input
+                    type="checkbox"
+                    checked={selectedTeacherIds.includes(teacher.id)}
+                    onchange={() => toggleTeacher(teacher.id)}
+                    class="h-4 w-4 rounded border-2 border-black accent-black"
+                  />
+                  <span>{teacher.name}</span>
+                </label>
+              {/each}
+            {/if}
+          </div>
         </div>
 
         <div class="flex items-center gap-3">

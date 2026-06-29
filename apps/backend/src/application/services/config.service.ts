@@ -1,8 +1,8 @@
 /*
 Tujuan: Menormalisasi environment variable backend fase 0 menjadi konfigurasi typed yang mudah dipakai.
-Caller: Container backend, bootstrap index.ts, Redis client, dan controller health.
+Caller: Container backend, bootstrap index.ts, Redis client, controller health, dan MidtransService.
 Dependensi: process.env runtime Bun/Node dan loader `.env` workspace backend.
-Main Functions: Memuat `.env` workspace bila perlu, membaca env, memberi fallback dev, dan memvalidasi parameter inti bootstrap serta payment/storage fase 2.
+Main Functions: Memuat `.env` workspace bila perlu, membaca env, memberi fallback dev, dan memvalidasi parameter inti bootstrap, payment/storage fase 2, serta Midtrans gateway.
 Side Effects: Mengisi `process.env` dari file `.env` lokal lalu melempar error saat konfigurasi wajib tidak tersedia atau tidak valid.
 */
 
@@ -38,6 +38,9 @@ export interface AppConfig {
   maxUploadSizeMb: number
   allowedPaymentProofTypes: string[]
   allowedMaterialAssetTypes: string[]
+  midtransServerKey: string
+  midtransClientKey: string
+  midtransIsProduction: boolean
 }
 
 export const loadConfig = (): AppConfig => {
@@ -71,6 +74,9 @@ export const loadConfig = (): AppConfig => {
     allowedMaterialAssetTypes: (process.env.ALLOWED_MATERIAL_ASSET_TYPES ?? 'image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/webm')
       .split(',')
       .map((value) => value.trim())
-      .filter(Boolean)
+      .filter(Boolean),
+    midtransServerKey: process.env.MIDTRANS_SERVER_KEY ?? '',
+    midtransClientKey: process.env.MIDTRANS_CLIENT_KEY ?? '',
+    midtransIsProduction: (process.env.MIDTRANS_IS_PRODUCTION ?? 'false') === 'true'
   }
 }

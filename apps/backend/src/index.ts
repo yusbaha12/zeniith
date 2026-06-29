@@ -1,8 +1,8 @@
 /*
-Tujuan: Menjadi entry point backend fase 5 untuk ElysiaJS dengan health, auth, paket, ruang belajar, mesin ujian, dan realtime leaderboard.
+Tujuan: Menjadi entry point backend fase 5+ untuk ElysiaJS dengan health, auth, paket, ruang belajar, mesin ujian, gamifikasi, realtime leaderboard, dan Midtrans payment gateway.
 Caller: Bun dev/build runtime, Docker backend container.
 Dependensi: ElysiaJS, plugin cors/jwt/bearer/swagger, container dependency, AppError, dan queue scheduler/worker.
-Main Functions: Bootstrap app, register plugin serta controller fase 1-5, tangani error global, lalu listen pada port backend.
+Main Functions: Bootstrap app, register plugin serta controller fase 1-5, gamifikasi, dan payment gateway, tangani error global, lalu listen pada port backend.
 Side Effects: Membuka port HTTP/WS, menginisialisasi plugin auth/docs/scheduler/worker, dan menulis log bootstrap ke stdout.
 */
 
@@ -139,8 +139,11 @@ const app = new Elysia()
   .use(container.realtimeController)
   .use(container.examController)
   .use(container.materialController)
+  .use(container.gamificationController)
   .use(container.orderController)
   .use(container.adminOrderController)
+  .use(container.paymentGatewayController)
+  .use(container.midtransWebhookController)
   .use(container.teacherMaterialController)
   .use(container.teacherExamController)
   .use(container.proctorController)

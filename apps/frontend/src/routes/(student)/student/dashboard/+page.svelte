@@ -1,14 +1,17 @@
 <!--
-Tujuan: Menyediakan dashboard awal murid fase 1 setelah login berhasil dengan widget rekomendasi belajar adaptif.
+Tujuan: Menyediakan dashboard awal murid setelah login berhasil dengan widget rekomendasi belajar adaptif dan ringkasan gamifikasi.
 Caller: Route `/student/dashboard`.
-Dependensi: Data user dari layout server, examApi untuk mengambil rekomendasi.
-Main Functions: Menampilkan welcome message, ringkasan profil, dan analisis belajar adaptif dinamis.
-Side Effects: Mengambil rekomendasi belajar siswa saat halaman di-load.
+Dependensi: Data user dari layout server, examApi untuk mengambil rekomendasi, dan gamificationApi untuk snapshot karakter/XP.
+Main Functions: Menampilkan welcome message, ringkasan profil, panel gamifikasi, dan analisis belajar adaptif dinamis.
+Side Effects: Mengambil rekomendasi belajar dan snapshot gamifikasi siswa saat halaman di-load.
 -->
 
 <script lang="ts">
   import { onMount } from 'svelte'
   import { examApi } from '$lib/infrastructure/api/exam.api'
+  import { gamificationApi } from '$lib/infrastructure/api/gamification.api'
+  import type { FrontendGamificationSnapshot } from '$lib/domain/types/gamification.types'
+  import { getCharacterEvolutionDisplay } from '$lib/domain/utils/gamification.util'
 
   let { data } = $props()
 
@@ -30,24 +33,151 @@ Side Effects: Mengambil rekomendasi belajar siswa saat halaman di-load.
   }
 
   let recommendation = $state<RecommendationData | null>(null)
+  let gamification = $state<FrontendGamificationSnapshot | null>(null)
   let isLoading = $state(true)
+  let isGamificationLoading = $state(true)
 
   onMount(async () => {
     try {
-      const response = await examApi.getAdaptiveRecommendation()
-      if (response && response.success) {
-        recommendation = response.data
+      const [recommendationResponse, gamificationResponse] = await Promise.allSettled([
+        examApi.getAdaptiveRecommendation(),
+        gamificationApi.getMine()
+      ])
+
+      if (recommendationResponse.status === 'fulfilled' && recommendationResponse.value?.success) {
+        recommendation = recommendationResponse.value.data
+      }
+
+      if (gamificationResponse.status === 'fulfilled') {
+        gamification = gamificationResponse.value
       }
     } catch (err) {
-      console.error('Failed to load recommendation:', err)
+      console.error('Failed to load dashboard data:', err)
     } finally {
       isLoading = false
+      isGamificationLoading = false
     }
   })
 </script>
 
 <h1 class="text-3xl font-extrabold uppercase text-black">Halo, {data.user.name}</h1>
 <p class="mt-3 text-sm font-bold leading-7 text-black/70">Selamat datang kembali di pusat belajar adaptif Anda. Pantau perkembangan dan tingkatkan performa latihan Anda di sini.</p>
+
+<section class="mt-6 rounded-xl border-4 border-black bg-neo-yellow p-5 shadow-solid-md">
+  {#if isGamificationLoading}
+    <div class="animate-pulse rounded-lg border-4 border-dashed border-black bg-white/70 p-6 text-sm font-extrabold uppercase text-black">
+      Memuat progres gamifikasi...
+    </div>
+  {:else if gamification}
+    {@const activeDisplay = getCharacterEvolutionDisplay(gamification.profile.character, gamification.profile.level)}
+    <div class="grid gap-5 lg:grid-cols-[280px_1fr] items-stretch">
+      <!-- BENTO 1: Karakter (Kiri) -->
+      <div class="rounded-xl border-4 border-black bg-white p-6 shadow-solid-md flex flex-col items-center text-center justify-between h-full">
+        <div class="w-full flex flex-col items-center">
+          <span class="inline-block rounded-md border-2 border-black bg-neo-yellow px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-black shadow-solid-sm">
+            Karakter Aktif
+          </span>
+          <img src={activeDisplay.imageUrl} alt={activeDisplay.name} class="mt-6 h-36 w-36 rounded-full border-4 border-black object-cover shadow-solid-sm bg-neo-blue/10" />
+          <h2 class="mt-5 text-3xl font-black uppercase text-black tracking-tight">{activeDisplay.name}</h2>
+          <h3 class="mt-1 text-lg font-black uppercase text-black/60">{activeDisplay.title}</h3>
+          <p class="mt-4 text-sm font-bold leading-6 text-black/80">{gamification.profile.character.personality}</p>
+        </div>
+        <a href="/student/gamifikasi" class="mt-6 inline-flex w-full items-center justify-center rounded-xl border-4 border-black bg-neo-blue px-5 py-4 text-sm font-black uppercase tracking-wide text-white shadow-solid-sm transition-transform active:translate-y-1 active:shadow-none hover:-translate-y-1 hover:shadow-solid-md">
+          Kelola Karakter
+        </a>
+      </div>
+
+      <!-- BENTO KANAN: Grid bersarang -->
+      <div class="grid gap-5 grid-cols-1 md:grid-cols-3 content-start">
+        <!-- BENTO 2: Level Progress (Membentang penuh 3 kolom) -->
+        <div class="md:col-span-3 rounded-xl border-4 border-black bg-white p-6 shadow-solid-md flex flex-col justify-center">
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <span class="inline-block rounded-md border-2 border-black bg-neo-yellow px-2 py-1 text-[10px] font-black uppercase tracking-widest text-black shadow-solid-sm">
+                Progres Belajar
+              </span>
+              <div class="mt-2 flex items-baseline gap-2">
+                <h3 class="text-5xl font-black uppercase tracking-tighter text-black">LV. {gamification.profile.level}</h3>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm font-bold text-black/70">
+                <span class="text-lg font-black text-black">{gamification.profile.currentLevelXp}</span> / {gamification.profile.nextLevelXp} XP
+              </p>
+              <p class="text-xs font-black uppercase tracking-widest text-black/50 mt-1">Menuju Level {gamification.profile.level + 1}</p>
+            </div>
+          </div>
+          <div class="relative mt-5 h-8 w-full overflow-hidden rounded-full border-4 border-black bg-white shadow-[inset_0_4px_0_rgba(0,0,0,0.1)]">
+            <div class="h-full bg-neo-blue transition-all duration-1000 ease-out border-r-4 border-black" style={`width: ${gamification.profile.progressPercent}%`}></div>
+          </div>
+        </div>
+
+        <!-- BENTO 3: Quest Aktif (Membentang 2 kolom) -->
+        <div class="md:col-span-2 rounded-xl border-4 border-black bg-neo-blue p-6 shadow-solid-md flex items-center justify-between transition-transform hover:-translate-y-1">
+          {#if gamification.activeQuests && gamification.activeQuests.length > 0}
+            {@const quest = gamification.activeQuests[0]}
+            <div class="text-white pr-4">
+              <span class="inline-block rounded-md border-2 border-black bg-neo-yellow px-2 py-1 text-[10px] font-black uppercase tracking-widest text-black shadow-solid-sm">
+                Misi Harian
+              </span>
+              <h3 class="mt-3 text-2xl font-black uppercase leading-none tracking-tight">{quest.title}</h3>
+              <p class="mt-2 text-sm font-bold text-white/80">{quest.description}</p>
+            </div>
+            <div class="flex flex-col items-center gap-2">
+              <div class="flex h-16 w-16 flex-col items-center justify-center rounded-xl border-4 border-black bg-neo-green shadow-solid-sm">
+                <span class="text-xl font-black text-black">+{quest.xpReward}</span>
+                <span class="text-[8px] font-black uppercase text-black/70">XP</span>
+              </div>
+              <p class="text-[10px] font-black uppercase tracking-widest text-white">{quest.progressValue}/{quest.targetValue} Selesai</p>
+            </div>
+          {:else}
+            <div class="text-white w-full">
+              <span class="inline-block rounded-md border-2 border-black bg-white px-2 py-1 text-[10px] font-black uppercase tracking-widest text-black shadow-solid-sm">
+                Misi Harian
+              </span>
+              <p class="mt-4 text-lg font-black uppercase">Semua misi harian telah selesai!</p>
+              <p class="mt-1 text-sm font-bold text-white/80">Kembali lagi besok untuk misi baru.</p>
+            </div>
+          {/if}
+        </div>
+
+        <!-- BENTO 4: Streak Aktif (1 kolom, tinggi penuh) -->
+        <div class="md:col-span-1 rounded-xl border-4 border-black bg-neo-green p-6 shadow-solid-md flex flex-col items-center justify-center text-center transition-transform hover:-translate-y-1">
+          <p class="text-xs font-black uppercase tracking-widest text-black/70">Streak Aktif</p>
+          <p class="mt-2 text-5xl font-black text-black">{gamification.profile.currentStreak}</p>
+          <p class="mt-1 text-sm font-black uppercase tracking-widest text-black/70">Hari</p>
+        </div>
+
+        <!-- BENTO 5: Total XP -->
+        <div class="md:col-span-1 rounded-xl border-4 border-black bg-neo-yellow p-4 shadow-solid-md flex flex-col justify-center items-center text-center transition-transform hover:-translate-y-1">
+          <p class="text-[10px] font-black uppercase tracking-widest text-black/70">Total XP</p>
+          <p class="mt-1 text-3xl font-black text-black">{gamification.profile.totalXp}</p>
+        </div>
+
+        <!-- BENTO 6: Shields -->
+        <div class="md:col-span-1 rounded-xl border-4 border-black bg-neo-red p-4 shadow-solid-md flex flex-col justify-center items-center text-center transition-transform hover:-translate-y-1 text-white">
+          <p class="text-[10px] font-black uppercase tracking-widest text-white/90">Shields Aktif</p>
+          <p class="mt-1 text-3xl font-black text-white">{gamification.profile.streakShields}</p>
+        </div>
+
+        <!-- BENTO 7: Badge Terbaru -->
+        <div class="md:col-span-1 rounded-xl border-4 border-black bg-white p-4 shadow-solid-md flex flex-col justify-center items-center text-center transition-transform hover:-translate-y-1">
+          {#if gamification.recentBadges && gamification.recentBadges.length > 0}
+            <p class="text-[10px] font-black uppercase tracking-widest text-black/70">Badge Terbaru</p>
+            <p class="mt-1 text-sm font-black uppercase leading-tight text-black">{gamification.recentBadges[0].name}</p>
+          {:else}
+            <p class="text-[10px] font-black uppercase tracking-widest text-black/70">Badge Terbaru</p>
+            <p class="mt-1 text-sm font-black uppercase text-black/40">Belum Ada</p>
+          {/if}
+        </div>
+      </div>
+    </div>
+  {:else}
+    <div class="rounded-lg border-4 border-black bg-white p-6 text-sm font-extrabold uppercase text-black">
+      Panel gamifikasi belum tersedia. Coba muat ulang halaman beberapa saat lagi.
+    </div>
+  {/if}
+</section>
 
 <div class="mt-6 grid gap-4 md:grid-cols-3">
   <article class="rounded-xl border-4 border-black bg-white p-5 shadow-solid-sm transition-transform hover:-translate-y-1 hover:shadow-solid-md">

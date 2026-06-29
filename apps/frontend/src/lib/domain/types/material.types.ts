@@ -1,8 +1,8 @@
 /*
-Tujuan: Menyediakan kontrak tipe ruang belajar frontend fase 3 untuk subject, module, material, dan progress.
-Caller: API material frontend, halaman student materi, dan halaman teacher materi.
+Tujuan: Menyediakan kontrak tipe ruang belajar frontend fase 3 untuk subject, module, material, progress, dan manajemen materi admin.
+Caller: API material frontend, halaman student materi, halaman teacher materi, dan halaman superadmin materi.
 Dependensi: MaterialType shared.
-Main Functions: Menstandarkan payload ruang belajar dari backend fase 3.
+Main Functions: Menstandarkan payload ruang belajar dan CRUD materi dari backend fase 3/7.
 Side Effects: Tidak ada; file type murni.
 */
 
@@ -69,6 +69,7 @@ export interface TeacherMaterialListItem {
   moduleTitle: string
   subjectId: string
   subjectName: string
+  branchId: string | null
   title: string
   slug: string
   summary: string | null

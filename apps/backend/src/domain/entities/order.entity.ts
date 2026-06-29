@@ -1,8 +1,8 @@
 /*
-Tujuan: Merepresentasikan entitas order paket fase 2 untuk checkout dan verifikasi pembayaran.
-Caller: Order repository, payment service, dan use case order admin/murid.
+Tujuan: Merepresentasikan entitas order paket fase 2 untuk checkout, verifikasi pembayaran, dan Midtrans gateway.
+Caller: Order repository, payment service, Midtrans service, dan use case order admin/murid.
 Dependensi: Shared enum payment/order status dan MoneyVO.
-Main Functions: Menyimpan data transaksi dan helper status verifikasi.
+Main Functions: Menyimpan data transaksi dan helper status verifikasi serta gateway.
 Side Effects: Tidak ada; entitas domain murni.
 */
 
@@ -28,6 +28,9 @@ export class OrderEntity {
     public readonly verifiedBy: string | null,
     public readonly verifiedAt: Date | null,
     public readonly expiresAt: Date | null,
+    public readonly midtransSnapToken: string | null,
+    public readonly midtransTransactionId: string | null,
+    public readonly midtransPaymentType: string | null,
     public readonly createdAt: Date
   ) {}
 
@@ -37,5 +40,9 @@ export class OrderEntity {
 
   canBeVerified(): boolean {
     return this.status === 'PENDING'
+  }
+
+  isGatewayOrder(): boolean {
+    return this.paymentMethod === 'QRIS' || this.paymentMethod === 'VIRTUAL_ACCOUNT'
   }
 }

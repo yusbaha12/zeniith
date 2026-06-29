@@ -1,9 +1,9 @@
 /*
-Tujuan: Menyediakan use case daftar mata pelajaran aktif fase 3, dengan filter berdasarkan paket langganan murid.
+Tujuan: Menyediakan use case daftar mata pelajaran aktif fase 3, dengan filter berdasarkan paket murid dan PIC guru.
 Caller: Material controller student dan teacher.
 Dependensi: IModuleRepository, ISubscriptionRepository, IPackageRepository.
-Main Functions: Mengambil daftar subject aktif; jika murid, hanya mengembalikan subjek yang ada di paket langganannya.
-Side Effects: Membaca tabel subjects, subscriptions, dan package_subjects melalui repository.
+Main Functions: Mengambil daftar subject aktif; murid difilter paket, guru difilter PIC dengan rule assignment kosong berarti terbuka.
+Side Effects: Membaca tabel subjects, subject_teacher_assignments, subscriptions, dan package_subjects melalui repository.
 */
 
 import type { IModuleRepository } from '../../../domain/repositories/module.repository'
@@ -18,7 +18,9 @@ export class ListSubjectsUseCase {
   ) {}
 
   async execute(userId?: string, userRole?: string) {
-    const allSubjects = await this.moduleRepository.listActiveSubjects()
+    const allSubjects = userId && userRole === 'TEACHER'
+      ? await this.moduleRepository.listActiveSubjectsForTeacher(userId)
+      : await this.moduleRepository.listActiveSubjects()
 
     // If the user is a student, filter subjects by their active subscription's package
     if (userId && userRole === 'STUDENT') {

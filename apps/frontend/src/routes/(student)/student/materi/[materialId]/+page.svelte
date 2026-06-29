@@ -1,8 +1,8 @@
 <!--
-Tujuan: Menyediakan halaman detail materi murid fase 3 untuk video, PDF, teks, dan latihan.
+Tujuan: Menyediakan halaman detail materi murid fase 3 untuk video, PDF, teks, latihan, dan feedback XP gamifikasi.
 Caller: Route `/student/materi/[materialId]`.
-Dependensi: Material API dan editor read-only untuk konten teks/exercise.
-Main Functions: Mengambil detail materi, menampilkan viewer sesuai type, dan menandai selesai saat diperlukan.
+Dependensi: Material API, editor read-only untuk konten teks/exercise, dan helper toast notifikasi.
+Main Functions: Mengambil detail materi, menampilkan viewer sesuai type, menandai selesai, dan memberi feedback XP jika reward baru diterapkan.
 Side Effects: Melakukan HTTP call ke backend untuk detail materi dan update progress.
 -->
 
@@ -12,6 +12,7 @@ Side Effects: Melakukan HTTP call ke backend untuk detail materi dan update prog
   import MaterialRichEditor from '$lib/components/editor/MaterialRichEditor.svelte'
   import type { FrontendMaterialDetail } from '$lib/domain/types/material.types'
   import { materialApi } from '$lib/infrastructure/api/material.api'
+  import { notify } from '$lib/infrastructure/notifications/notify'
 
   let { data } = $props<{ data: { materialId: string } }>()
 
@@ -36,10 +37,16 @@ Side Effects: Melakukan HTTP call ke backend untuk detail materi dan update prog
     }
 
     try {
-      await materialApi.trackProgress(material.id, 100, true)
+      const result = await materialApi.trackProgress(material.id, 100, true)
       message = 'Progress materi ditandai selesai.'
+      if (result.gamificationReward?.applied) {
+        notify.success(`Materi selesai. +${result.gamificationReward.xpDelta ?? 25} XP`)
+      } else {
+        notify.info('Materi sudah pernah dihitung untuk XP. Progress tetap tersimpan.')
+      }
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : 'Progress gagal disimpan'
+      notify.error(errorMessage)
     }
   }
 </script>

@@ -1,9 +1,9 @@
 /*
-Tujuan: Menyediakan use case fase 7 untuk memperbarui data mata pelajaran.
+Tujuan: Menyediakan use case fase 7 untuk memperbarui data mata pelajaran dan PIC guru opsional.
 Caller: Superadmin curriculum controller.
 Dependensi: Module repository.
-Main Functions: Menyimpan perubahan mata pelajaran ke database.
-Side Effects: Memperbarui database PostgreSQL.
+Main Functions: Menyimpan perubahan mata pelajaran dan mengganti assignment guru bila dikirim.
+Side Effects: Memperbarui tabel subjects dan subject_teacher_assignments pada PostgreSQL.
 */
 
 import type { IModuleRepository } from '../../../domain/repositories/module.repository'
@@ -14,6 +14,7 @@ export interface UpdateSubjectInput {
   description?: string | null
   sortOrder?: number
   isActive?: boolean
+  teacherIds?: string[]
 }
 
 export class UpdateSubjectUseCase {
@@ -24,7 +25,8 @@ export class UpdateSubjectUseCase {
       name: input.name,
       description: input.description,
       sortOrder: input.sortOrder,
-      isActive: input.isActive
+      isActive: input.isActive,
+      teacherIds: input.teacherIds
     })
   }
 }

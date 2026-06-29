@@ -198,15 +198,18 @@ export class ExamRepositoryImpl implements IExamRepository {
     }))
   }
 
-  async listByTeacher(teacherId: string, branchId: string | null): Promise<TeacherExamListItem[]> {
+  async listByTeacher(teacherId: string, branchId: string | null): Promise<any[]> {
     return this.readDatabase
       .select({
         id: exams.id,
         subjectId: exams.subjectId,
         subjectName: subjects.name,
+        branchId: exams.branchId,
+        branchName: branches.name,
         title: exams.title,
         slug: exams.slug,
         description: exams.description,
+        instructions: exams.instructions,
         examType: exams.examType,
         durationMinutes: exams.durationMinutes,
         totalQuestions: exams.totalQuestions,
@@ -223,19 +226,23 @@ export class ExamRepositoryImpl implements IExamRepository {
       })
       .from(exams)
       .leftJoin(subjects, eq(subjects.id, exams.subjectId))
+      .leftJoin(branches, eq(branches.id, exams.branchId))
       .where(and(eq(exams.createdBy, teacherId), branchId ? eq(exams.branchId, branchId) : undefined))
       .orderBy(desc(exams.updatedAt))
   }
 
-  async listAllExams(): Promise<TeacherExamListItem[]> {
+  async listAllExams(): Promise<any[]> {
     return this.readDatabase
       .select({
         id: exams.id,
         subjectId: exams.subjectId,
         subjectName: subjects.name,
+        branchId: exams.branchId,
+        branchName: branches.name,
         title: exams.title,
         slug: exams.slug,
         description: exams.description,
+        instructions: exams.instructions,
         examType: exams.examType,
         durationMinutes: exams.durationMinutes,
         totalQuestions: exams.totalQuestions,
@@ -252,6 +259,7 @@ export class ExamRepositoryImpl implements IExamRepository {
       })
       .from(exams)
       .leftJoin(subjects, eq(subjects.id, exams.subjectId))
+      .leftJoin(branches, eq(branches.id, exams.branchId))
       .orderBy(desc(exams.updatedAt))
   }
 
@@ -292,9 +300,12 @@ export class ExamRepositoryImpl implements IExamRepository {
         id: exams.id,
         subjectId: exams.subjectId,
         subjectName: subjects.name,
+        branchId: exams.branchId,
+        branchName: branches.name,
         title: exams.title,
         slug: exams.slug,
         description: exams.description,
+        instructions: exams.instructions,
         examType: exams.examType,
         durationMinutes: exams.durationMinutes,
         totalQuestions: exams.totalQuestions,
@@ -311,10 +322,11 @@ export class ExamRepositoryImpl implements IExamRepository {
       })
       .from(exams)
       .leftJoin(subjects, eq(subjects.id, exams.subjectId))
+      .leftJoin(branches, eq(branches.id, exams.branchId))
       .where(and(eq(exams.id, examId), eq(exams.createdBy, teacherId)))
       .limit(1)
 
-    return row ?? null
+    return (row as TeacherExamListItem) ?? null
   }
 
   async findWithQuestions(examId: string): Promise<{ exam: ReturnType<typeof ExamMapper.toDomain>; questions: ExamQuestion[] } | null> {
@@ -478,6 +490,41 @@ export class ExamRepositoryImpl implements IExamRepository {
 
     return ExamMapper.toDomain(row)
   }
+
+  async updateExam(examId: string, input: Partial<CreateExamInput>, executor?: unknown) {
+    const database = (executor as AppDatabase | undefined) ?? this.database
+    const [row] = await database
+      .update(exams)
+      .set({
+        ...(input.branchId !== undefined && { branchId: input.branchId }),
+        ...(input.subjectId !== undefined && { subjectId: input.subjectId }),
+        ...(input.title !== undefined && { title: input.title }),
+        ...(input.slug !== undefined && { slug: input.slug }),
+        ...(input.description !== undefined && { description: input.description }),
+        ...(input.instructions !== undefined && { instructions: input.instructions }),
+        ...(input.examType !== undefined && { examType: input.examType }),
+        ...(input.durationMinutes !== undefined && { durationMinutes: input.durationMinutes }),
+        ...(input.startsAt !== undefined && { startsAt: input.startsAt }),
+        ...(input.endsAt !== undefined && { endsAt: input.endsAt }),
+        ...(input.isPublished !== undefined && { isPublished: input.isPublished }),
+        updatedAt: new Date()
+      })
+      .where(eq(exams.id, examId))
+      .returning()
+
+    if (!row) {
+      throw new Error('Exam not found')
+    }
+    return ExamMapper.toDomain(row)
+  }
+
+  async deleteExam(examId: string, executor?: unknown) {
+    const database = (executor as AppDatabase | undefined) ?? this.database
+    await database
+      .delete(exams)
+      .where(eq(exams.id, examId))
+  }
+
 
   async createQuestion(input: CreateQuestionInput, executor?: unknown): Promise<ExamQuestion> {
     const database = (executor as AppDatabase | undefined) ?? this.database

@@ -1,14 +1,15 @@
 /*
-Tujuan: Menjadi komposisi dependency backend fase 5 beserta fondasi runtime authorization granular untuk health, auth, profile, paket, ruang belajar, mesin ujian, dan realtime leaderboard.
+Tujuan: Menjadi komposisi dependency backend fase 5-7 beserta fondasi runtime authorization granular, gamifikasi, dan Midtrans payment gateway untuk health, auth, profile, paket, ruang belajar, mesin ujian, materi superadmin, dan realtime leaderboard.
 Caller: Bootstrap `src/index.ts`.
 Dependensi: Config service, DB connection, repo, service, middleware, queue scheduler/worker, gateway realtime, dan controller HTTP.
-Main Functions: Membuat object dependency yang dipakai bootstrap tanpa hard-code tersebar untuk fase 1-7 awal.
+Main Functions: Membuat object dependency yang dipakai bootstrap tanpa hard-code tersebar untuk fase 1-7 awal dan endpoint gamifikasi murid.
 Side Effects: Menyiapkan instance singleton Redis/DB/storage, gateway realtime, service authorization, dan menyatukan dependency runtime backend.
 */
 
 import { AuthService } from './application/services/auth.service'
 import { AuthorizationService } from './application/services/authorization.service'
 import { ExamService } from './application/services/exam.service'
+import { GamificationService } from './application/services/gamification.service'
 import { ListBranchesUseCase } from './application/use-cases/branch/list-branches.usecase'
 import { LoginUseCase } from './application/use-cases/auth/login.usecase'
 import { RefreshTokenUseCase } from './application/use-cases/auth/refresh-token.usecase'
@@ -27,6 +28,10 @@ import { SubmitAnswerUseCase } from './application/use-cases/exam/submit-answer.
 import { SubmitExamUseCase } from './application/use-cases/exam/submit-exam.usecase'
 import { GetAdaptiveRecommendationUseCase } from './application/use-cases/exam/get-adaptive-recommendation.usecase'
 import { UpdateQuestionUseCase } from './application/use-cases/exam/update-question.usecase'
+import { UpdateExamUseCase } from './application/use-cases/exam/update-exam.usecase'
+import { DeleteExamUseCase } from './application/use-cases/exam/delete-exam.usecase'
+import { ChooseCharacterUseCase } from './application/use-cases/gamification/choose-character.usecase'
+import { GetMyGamificationUseCase } from './application/use-cases/gamification/get-my-gamification.usecase'
 import { PaymentService } from './application/services/payment.service'
 import { MaterialService } from './application/services/material.service'
 import { LeaderboardService } from './application/services/leaderboard.service'
@@ -48,6 +53,10 @@ import { ListMyOrdersUseCase } from './application/use-cases/order/list-my-order
 import { PurchasePackageUseCase } from './application/use-cases/order/purchase-package.usecase'
 import { VerifyOrderUseCase } from './application/use-cases/order/verify-order.usecase'
 import { GetActiveSubscriptionUseCase } from './application/use-cases/subscription/get-active-subscription.usecase'
+import { CreateMidtransTokenUseCase } from './application/use-cases/order/create-midtrans-token.usecase'
+import { HandleMidtransNotificationUseCase } from './application/use-cases/order/handle-midtrans-notification.usecase'
+import { GetOrderStatusUseCase } from './application/use-cases/order/get-order-status.usecase'
+import { MidtransService } from './application/services/midtrans.service'
 import { GetProfileUseCase } from './application/use-cases/user/get-profile.usecase'
 import { UpdatePasswordUseCase } from './application/use-cases/user/update-password.usecase'
 import { UpdateProfileUseCase } from './application/use-cases/user/update-profile.usecase'
@@ -59,6 +68,7 @@ import { WeeklyReportScheduler } from './infrastructure/queues/weekly-report.sch
 import { getRedisClient } from './infrastructure/redis/redis.client'
 import { ExamRepositoryImpl } from './infrastructure/repositories/exam.repository.impl'
 import { BranchRepositoryImpl } from './infrastructure/repositories/branch.repository.impl'
+import { GamificationRepositoryImpl } from './infrastructure/repositories/gamification.repository.impl'
 import { MaterialRepositoryImpl } from './infrastructure/repositories/material.repository.impl'
 import { ModuleRepositoryImpl } from './infrastructure/repositories/module.repository.impl'
 import { OrderRepositoryImpl } from './infrastructure/repositories/order.repository.impl'
@@ -71,9 +81,11 @@ import { createAdminOrderController } from './presentation/http/controllers/admi
 import { createAuthController } from './presentation/http/controllers/auth.controller'
 import { createBranchController } from './presentation/http/controllers/branch.controller'
 import { createExamController } from './presentation/http/controllers/exam.controller'
+import { createGamificationController } from './presentation/http/controllers/gamification.controller'
 import { createHealthController } from './presentation/http/controllers/health.controller'
 import { createMaterialController } from './presentation/http/controllers/material.controller'
 import { createOrderController } from './presentation/http/controllers/order.controller'
+import { createPaymentGatewayController, createMidtransWebhookController } from './presentation/http/controllers/payment-gateway.controller'
 import { createPackageController } from './presentation/http/controllers/package.controller'
 import { createTeacherExamController } from './presentation/http/controllers/teacher-exam.controller'
 import { createTeacherMaterialController } from './presentation/http/controllers/teacher-material.controller'
@@ -106,6 +118,10 @@ import { SuperadminListExamsUseCase } from './application/use-cases/superadmin/l
 import { SuperadminGetExamDetailUseCase } from './application/use-cases/superadmin/get-exam-detail.usecase'
 import { SuperadminCreateQuestionUseCase } from './application/use-cases/superadmin/create-question.usecase'
 import { SuperadminUpdateQuestionUseCase } from './application/use-cases/superadmin/update-question.usecase'
+import { SuperadminListMaterialsUseCase } from './application/use-cases/superadmin/list-materials.usecase'
+import { SuperadminGetMaterialDetailUseCase } from './application/use-cases/superadmin/get-material-detail.usecase'
+import { SuperadminUpdateMaterialUseCase } from './application/use-cases/superadmin/update-material.usecase'
+import { SuperadminDeleteMaterialUseCase } from './application/use-cases/superadmin/delete-material.usecase'
 import { ListAllBranchesUseCase } from './application/use-cases/branch/list-all-branches.usecase'
 import { CreateBranchUseCase } from './application/use-cases/branch/create-branch.usecase'
 import { UpdateBranchUseCase } from './application/use-cases/branch/update-branch.usecase'
@@ -147,6 +163,7 @@ export const createContainer = () => {
   const materialRepository = new MaterialRepositoryImpl(db)
   const packageRepository = new PackageRepositoryImpl(db, () => getRedisClient(config))
   const orderRepository = new OrderRepositoryImpl(db)
+  const gamificationRepository = new GamificationRepositoryImpl(db)
   const permissionRepository = new PermissionRepositoryImpl(db)
   const subscriptionRepository = new SubscriptionRepositoryImpl(db)
   const userRepository = new UserRepositoryImpl(db)
@@ -159,8 +176,10 @@ export const createContainer = () => {
   const paymentService = new PaymentService(config)
   const examService = new ExamService()
   const leaderboardService = new LeaderboardService(config, examRepository)
+  const gamificationService = new GamificationService(gamificationRepository)
   const objectStorageService = new ObjectStorageService(config)
   const materialService = new MaterialService(config, objectStorageService)
+  const midtransService = new MidtransService(config)
   const authMiddleware = createAuthMiddleware(authService, userRepository, authorizationService)
 
   const loginUseCase = new LoginUseCase(userRepository, authService)
@@ -176,9 +195,14 @@ export const createContainer = () => {
   const listModulesBySubjectUseCase = new ListModulesBySubjectUseCase(moduleRepository)
   const listMaterialsByModuleUseCase = new ListMaterialsByModuleUseCase(moduleRepository, materialRepository, subscriptionRepository, packageRepository)
   const getMaterialDetailUseCase = new GetMaterialDetailUseCase(materialRepository, materialService, objectStorageService)
-  const trackMaterialProgressUseCase = new TrackMaterialProgressUseCase(materialRepository)
+  const trackMaterialProgressUseCase = new TrackMaterialProgressUseCase(db, materialRepository, gamificationService)
   const listTeacherMaterialsUseCase = new ListTeacherMaterialsUseCase(materialRepository)
-  const getTeacherMaterialDetailUseCase = new GetTeacherMaterialDetailUseCase(materialRepository, materialService, objectStorageService)
+  const getTeacherMaterialDetailUseCase = new GetTeacherMaterialDetailUseCase(
+    materialRepository,
+    moduleRepository,
+    materialService,
+    objectStorageService
+  )
   const createMaterialUseCase = new CreateMaterialUseCase(
     db,
     moduleRepository,
@@ -189,10 +213,11 @@ export const createContainer = () => {
   const updateMaterialUseCase = new UpdateMaterialUseCase(
     db,
     materialRepository,
+    moduleRepository,
     materialService,
     objectStorageService
   )
-  const deleteMaterialUseCase = new DeleteMaterialUseCase(db, materialRepository)
+  const deleteMaterialUseCase = new DeleteMaterialUseCase(db, materialRepository, moduleRepository)
   const uploadMaterialImageUseCase = new UploadMaterialImageUseCase(materialService, objectStorageService)
   const purchasePackageUseCase = new PurchasePackageUseCase(
     db,
@@ -211,9 +236,27 @@ export const createContainer = () => {
     subscriptionRepository,
     paymentService
   )
+  const createMidtransTokenUseCase = new CreateMidtransTokenUseCase(
+    db,
+    orderRepository,
+    packageRepository,
+    midtransService,
+    config
+  )
+  const handleMidtransNotificationUseCase = new HandleMidtransNotificationUseCase(
+    db,
+    orderRepository,
+    packageRepository,
+    subscriptionRepository,
+    midtransService,
+    paymentService
+  )
+  const getOrderStatusUseCase = new GetOrderStatusUseCase(orderRepository, objectStorageService)
   const getProfileUseCase = new GetProfileUseCase(userRepository)
   const updateProfileUseCase = new UpdateProfileUseCase(db, userRepository)
   const updatePasswordUseCase = new UpdatePasswordUseCase(db, userRepository, authService)
+  const getMyGamificationUseCase = new GetMyGamificationUseCase(gamificationService)
+  const chooseCharacterUseCase = new ChooseCharacterUseCase(db, gamificationRepository, gamificationService)
   const subscriptionMiddleware = createSubscriptionMiddleware(getActiveSubscriptionUseCase)
   const loginRateLimiter = rateLimit(getRedisClient(config), { max: 5, durationSeconds: 60 })
 
@@ -253,10 +296,26 @@ export const createContainer = () => {
   const createModuleUseCase = new CreateModuleUseCase(moduleRepository)
   const updateModuleUseCase = new UpdateModuleUseCase(moduleRepository)
   const deleteModuleUseCase = new DeleteModuleUseCase(moduleRepository)
+  const superadminListMaterialsUseCase = new SuperadminListMaterialsUseCase(materialRepository)
+  const superadminGetMaterialDetailUseCase = new SuperadminGetMaterialDetailUseCase(
+    materialRepository,
+    materialService,
+    objectStorageService
+  )
+  const superadminUpdateMaterialUseCase = new SuperadminUpdateMaterialUseCase(
+    db,
+    materialRepository,
+    materialService,
+    objectStorageService
+  )
+  const superadminDeleteMaterialUseCase = new SuperadminDeleteMaterialUseCase(db, materialRepository)
   const superadminListExamsUseCase = new SuperadminListExamsUseCase(examRepository)
   const superadminGetExamDetailUseCase = new SuperadminGetExamDetailUseCase(examRepository)
   const superadminCreateQuestionUseCase = new SuperadminCreateQuestionUseCase(examRepository, examService)
   const superadminUpdateQuestionUseCase = new SuperadminUpdateQuestionUseCase(examRepository, examService)
+  const createExamUseCase = new CreateExamUseCase(examRepository, examService)
+  const updateExamUseCase = new UpdateExamUseCase(examRepository, examService)
+  const deleteExamUseCase = new DeleteExamUseCase(examRepository)
 
   const branchAdminController = createBranchAdminController(
     authMiddleware,
@@ -301,10 +360,19 @@ export const createContainer = () => {
     getSystemSettingsUseCase,
     updateSystemSettingsUseCase,
     getAuditLogsUseCase,
+    superadminListMaterialsUseCase,
+    superadminGetMaterialDetailUseCase,
+    createMaterialUseCase,
+    superadminUpdateMaterialUseCase,
+    superadminDeleteMaterialUseCase,
+    uploadMaterialImageUseCase,
     superadminListExamsUseCase,
     superadminGetExamDetailUseCase,
     superadminCreateQuestionUseCase,
-    superadminUpdateQuestionUseCase
+    superadminUpdateQuestionUseCase,
+    createExamUseCase,
+    updateExamUseCase,
+    deleteExamUseCase
   )
 
 
@@ -363,7 +431,6 @@ export const createContainer = () => {
   const getExamLeaderboardUseCase = new GetExamLeaderboardUseCase(examRepository, leaderboardService)
   const listTeacherExamsUseCase = new ListTeacherExamsUseCase(examRepository)
   const getTeacherExamDetailUseCase = new GetTeacherExamDetailUseCase(examRepository)
-  const createExamUseCase = new CreateExamUseCase(examRepository, examService)
   const createQuestionUseCase = new CreateQuestionUseCase(examRepository, examService)
   const updateQuestionUseCase = new UpdateQuestionUseCase(examRepository, examService)
   const subscriptionExpiryScheduler = new SubscriptionExpiryScheduler(
@@ -412,6 +479,11 @@ export const createContainer = () => {
       getMaterialDetailUseCase,
       trackMaterialProgressUseCase
     ),
+    gamificationController: createGamificationController(
+      authMiddleware,
+      getMyGamificationUseCase,
+      chooseCharacterUseCase
+    ),
     orderController: createOrderController(
       authMiddleware,
       purchasePackageUseCase,
@@ -419,6 +491,13 @@ export const createContainer = () => {
       getActiveSubscriptionUseCase
     ),
     adminOrderController: createAdminOrderController(authMiddleware, listBranchOrdersUseCase, verifyOrderUseCase),
+    paymentGatewayController: createPaymentGatewayController(
+      authMiddleware,
+      createMidtransTokenUseCase,
+      handleMidtransNotificationUseCase,
+      getOrderStatusUseCase
+    ),
+    midtransWebhookController: createMidtransWebhookController(handleMidtransNotificationUseCase),
     teacherMaterialController: createTeacherMaterialController(
       authMiddleware,
       listTeacherMaterialsUseCase,
@@ -434,7 +513,8 @@ export const createContainer = () => {
       getTeacherExamDetailUseCase,
       createExamUseCase,
       createQuestionUseCase,
-      updateQuestionUseCase
+      updateQuestionUseCase,
+      updateExamUseCase
     ),
     proctorController,
     subscriptionMiddleware,

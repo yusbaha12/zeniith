@@ -1,8 +1,8 @@
 <!--
-Tujuan: Menyediakan halaman daftar ujian guru fase 4.
+Tujuan: Menyediakan halaman daftar ujian guru dengan CRUD metadata ujian (Edit Info).
 Caller: Route `/teacher/ujian`.
-Dependensi: Exam API frontend.
-Main Functions: Mengambil daftar ujian guru dan menyediakan CTA buat atau edit ujian.
+Dependensi: Exam API, Material API frontend.
+Main Functions: Mengambil daftar ujian guru, mengedit metadata ujian guru, dan menyediakan CTA buat atau kelola soal ujian.
 Side Effects: Melakukan HTTP call ke backend `/api/teacher/exams`.
 -->
 
@@ -11,10 +11,14 @@ Side Effects: Melakukan HTTP call ke backend `/api/teacher/exams`.
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
   import type { FrontendTeacherExamListItem } from '$lib/domain/types/exam.types'
+  import type { FrontendSubject } from '$lib/domain/types/material.types'
   import { examApi } from '$lib/infrastructure/api/exam.api'
+  import { materialApi } from '$lib/infrastructure/api/material.api'
+  import { notify } from '$lib/infrastructure/notifications/notify'
   import Select from '$lib/components/ui/Select.svelte'
 
   let exams = $state<FrontendTeacherExamListItem[]>([])
+  let subjects = $state<FrontendSubject[]>([])
   let isLoading = $state(true)
   let loadError = $state<string | null>(null)
 
@@ -89,9 +93,96 @@ Side Effects: Melakukan HTTP call ke backend `/api/teacher/exams`.
     await syncFilters(url)
   }
 
+  // Modal & Form States
+  let isEditModalOpen = $state(false)
+  let isSubmitting = $state(false)
+  let selectedExam = $state<any>(null)
+
+  let title = $state('')
+  let description = $state('')
+  let instructions = $state('')
+  let examType = $state<'TRYOUT' | 'LATIHAN' | 'MID_EXAM' | 'FINAL_EXAM'>('TRYOUT')
+  let durationMinutes = $state(90)
+  let startsAt = $state('')
+  let endsAt = $state('')
+  let subjectId = $state<string>('')
+  let isPublished = $state(false)
+
+  const formSubjectOptions = $derived([
+    { value: '', label: 'Pilih Mata Pelajaran' },
+    ...subjects.map(s => ({ value: s.id, label: s.name }))
+  ])
+
+  const formExamTypeOptions = [
+    { value: 'TRYOUT', label: 'Tryout' },
+    { value: 'LATIHAN', label: 'Latihan' },
+    { value: 'MID_EXAM', label: 'Ujian Tengah Semester' },
+    { value: 'FINAL_EXAM', label: 'Ujian Akhir Semester' }
+  ]
+
+  function formatDatetimeLocal(dateVal: string | Date | undefined | null): string {
+    if (!dateVal) return ''
+    const d = new Date(dateVal)
+    if (isNaN(d.getTime())) return ''
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const date = String(d.getDate()).padStart(2, '0')
+    const hours = String(d.getHours()).padStart(2, '0')
+    const minutes = String(d.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${date}T${hours}:${minutes}`
+  }
+
+  const openEditModal = (exam: any) => {
+    selectedExam = exam
+    title = exam.title
+    description = exam.description ?? ''
+    instructions = exam.instructions ?? ''
+    examType = exam.examType
+    durationMinutes = exam.durationMinutes
+    startsAt = formatDatetimeLocal(exam.startsAt)
+    endsAt = formatDatetimeLocal(exam.endsAt)
+    subjectId = exam.subjectId ?? ''
+    isPublished = exam.isPublished ?? false
+    isEditModalOpen = true
+  }
+
+  const handleUpdate = async (e: SubmitEvent) => {
+    e.preventDefault()
+    if (!subjectId) {
+      notify.error('Mata pelajaran wajib dipilih')
+      return
+    }
+    isSubmitting = true
+    try {
+      await examApi.updateTeacherExam(selectedExam.id, {
+        subjectId: subjectId || null,
+        title,
+        description: description || null,
+        instructions: instructions || null,
+        examType,
+        durationMinutes,
+        startsAt: new Date(startsAt).toISOString(),
+        endsAt: new Date(endsAt).toISOString(),
+        isPublished
+      })
+      notify.success('Ujian berhasil diperbarui')
+      isEditModalOpen = false
+      exams = await examApi.listTeacherExams()
+    } catch (err: any) {
+      notify.error(err.message || 'Gagal memperbarui ujian')
+    } finally {
+      isSubmitting = false
+    }
+  }
+
   onMount(async () => {
     try {
-      exams = await examApi.listTeacherExams()
+      const [examsData, subjectsData] = await Promise.all([
+        examApi.listTeacherExams(),
+        materialApi.listSubjects()
+      ])
+      exams = examsData
+      subjects = subjectsData
     } catch (error) {
       loadError = error instanceof Error ? error.message : 'Daftar ujian guru gagal dimuat'
     } finally {
@@ -211,14 +302,27 @@ Side Effects: Melakukan HTTP call ke backend `/api/teacher/exams`.
             <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p class="text-lg font-black text-ink uppercase tracking-tight">{exam.title}</p>
-                <p class="mt-1 text-sm font-bold text-ink/70">{exam.subjectName ?? 'Umum'} • {exam.examType} • {exam.durationMinutes} menit</p>
+                <p class="mt-1 text-sm font-bold text-ink/70">
+                  {exam.subjectName ?? 'Umum'} • {exam.examType} • {exam.durationMinutes} menit
+                  {#if exam.isPublished}
+                    • <span class="bg-neo-green text-black px-1.5 py-0.5 rounded border border-black text-xs font-black uppercase">Aktif</span>
+                  {:else}
+                    • <span class="bg-neo-red text-white px-1.5 py-0.5 rounded border border-black text-xs font-black uppercase">Draf</span>
+                  {/if}
+                </p>
                 {#if exam.description}
                   <p class="mt-2 text-sm font-semibold text-ink/75">{exam.description}</p>
                 {/if}
               </div>
-              <div class="flex gap-2">
-                <a href={`/teacher/ujian/${exam.id}/monitor`} class="rounded-lg border-2 border-black bg-neo-blue px-4 py-2 text-sm font-extrabold uppercase text-white shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform">Monitor</a>
-                <a href={`/teacher/ujian/${exam.id}/edit`} class="rounded-lg border-2 border-black bg-white px-4 py-2 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform">Edit</a>
+              <div class="flex flex-wrap gap-2 lg:flex-row lg:items-center">
+                <a href={`/teacher/ujian/${exam.id}/monitor`} class="rounded-lg border-2 border-black bg-neo-blue px-4 py-2.5 text-sm font-extrabold uppercase text-white shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform">Monitor</a>
+                <a href={`/teacher/ujian/${exam.id}/edit`} class="rounded-lg border-2 border-black bg-white px-4 py-2.5 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform">Kelola Soal</a>
+                <button
+                  onclick={() => openEditModal(exam)}
+                  class="rounded-lg border-2 border-black bg-neo-yellow px-4 py-2.5 text-sm font-extrabold uppercase text-black shadow-solid-sm hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+                >
+                  Edit Info
+                </button>
               </div>
             </div>
           </article>
@@ -228,3 +332,121 @@ Side Effects: Melakukan HTTP call ke backend `/api/teacher/exams`.
   {/if}
 </section>
 
+<!-- Modal: Edit Ujian (Guru) -->
+{#if isEditModalOpen}
+  <div class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
+    <div class="w-full max-w-2xl rounded-2xl border-4 border-black bg-white p-8 shadow-solid-lg my-8">
+      <h2 class="text-2xl font-black uppercase text-ink">Edit Detail Ujian</h2>
+      <p class="mt-1 text-xs font-bold text-ink/50">Ubah informasi jadwal, durasi, dan metadata ujian milik Anda.</p>
+      
+      <form onsubmit={handleUpdate} class="mt-6 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="col-span-1 md:col-span-2">
+            <label class="block text-xs font-black text-black uppercase tracking-wider">Judul Ujian <span class="text-neo-red">*</span></label>
+            <input
+              type="text"
+              required
+              bind:value={title}
+              class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-black text-black uppercase tracking-wider">Mata Pelajaran <span class="text-neo-red">*</span></label>
+            <Select
+              options={formSubjectOptions}
+              bind:value={subjectId}
+              class="w-full mt-2"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-black text-black uppercase tracking-wider">Tipe Ujian <span class="text-neo-red">*</span></label>
+            <Select
+              options={formExamTypeOptions}
+              bind:value={examType}
+              class="w-full mt-2"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-black text-black uppercase tracking-wider">Durasi (Menit) <span class="text-neo-red">*</span></label>
+            <input
+              type="number"
+              required
+              min="1"
+              max="600"
+              bind:value={durationMinutes}
+              class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-black text-black uppercase tracking-wider">Jadwal Mulai <span class="text-neo-red">*</span></label>
+            <input
+              type="datetime-local"
+              required
+              bind:value={startsAt}
+              class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-black text-black uppercase tracking-wider">Jadwal Selesai <span class="text-neo-red">*</span></label>
+            <input
+              type="datetime-local"
+              required
+              bind:value={endsAt}
+              class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+            />
+          </div>
+
+          <div class="col-span-1 md:col-span-2">
+            <label class="block text-xs font-black text-black uppercase tracking-wider">Deskripsi</label>
+            <textarea
+              bind:value={description}
+              rows="2"
+              class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+            ></textarea>
+          </div>
+
+          <div class="col-span-1 md:col-span-2">
+            <label class="block text-xs font-black text-black uppercase tracking-wider">Instruksi Pengerjaan</label>
+            <textarea
+              bind:value={instructions}
+              rows="2"
+              class="mt-2 w-full rounded-xl border-[3px] border-black px-4 py-3 text-sm font-black text-black bg-white outline-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:-translate-x-[1px] focus:-translate-y-[1px] focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 mt-2">
+          <input
+            type="checkbox"
+            id="checkbox-is-published-edit-teacher"
+            bind:checked={isPublished}
+            class="h-5 w-5 rounded border-[3px] border-black bg-white accent-black focus:ring-0 cursor-pointer shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+          />
+          <label for="checkbox-is-published-edit-teacher" class="text-sm font-black uppercase text-ink select-none cursor-pointer">Publikasikan Ujian</label>
+        </div>
+
+        <div class="mt-8 flex gap-3">
+          <button
+            type="button"
+            onclick={() => (isEditModalOpen = false)}
+            class="w-1/2 rounded-xl border-[3px] border-black bg-slate-100 px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+          >
+            Batal
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            class="w-1/2 rounded-xl border-[3px] border-black bg-neo-green px-4 py-3 text-sm font-black uppercase text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
+          >
+            {isSubmitting ? 'Menyimpan...' : 'Simpan'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}

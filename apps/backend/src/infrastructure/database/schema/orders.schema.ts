@@ -1,8 +1,8 @@
 /*
-Tujuan: Mendefinisikan schema tabel orders untuk checkout murid dan verifikasi admin fase 2.
+Tujuan: Mendefinisikan schema tabel orders untuk checkout murid, verifikasi admin, dan Midtrans gateway fase 2.
 Caller: Drizzle Kit, order repository, dan use case pembayaran.
 Dependensi: drizzle-orm/pg-core dan schema users/branches/packages.
-Main Functions: Menyimpan transaksi pembelian, bukti transfer, status verifikasi, dan indeks list efisien.
+Main Functions: Menyimpan transaksi pembelian, bukti transfer, status verifikasi, token Midtrans, dan indeks list efisien.
 Side Effects: Menjadi sumber migration database untuk modul order.
 */
 
@@ -43,6 +43,10 @@ export const orders = pgTable('orders', {
   verifiedBy: uuid('verified_by').references(() => users.id, { onDelete: 'set null' }),
   verifiedAt: timestamp('verified_at'),
   expiresAt: timestamp('expires_at'),
+  // Midtrans payment gateway columns
+  midtransSnapToken: text('midtrans_snap_token'),
+  midtransTransactionId: varchar('midtrans_transaction_id', { length: 100 }),
+  midtransPaymentType: varchar('midtrans_payment_type', { length: 60 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull()
 }, (table) => ({

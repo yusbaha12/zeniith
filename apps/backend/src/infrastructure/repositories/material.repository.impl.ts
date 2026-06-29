@@ -1,12 +1,12 @@
 /*
-Tujuan: Menyediakan implementasi repository materi/progress berbasis Drizzle untuk fase 3.
-Caller: Use case student materials, track progress, dan teacher CRUD materi.
+Tujuan: Menyediakan implementasi repository materi/progress berbasis Drizzle untuk fase 3 dan manajemen materi superadmin.
+Caller: Use case student materials, track progress, teacher CRUD materi, dan superadmin material management.
 Dependensi: AppDatabase, schema materials/material_progresses/modules/subjects, dan MaterialMapper.
-Main Functions: Menjalankan query material student dan teacher dengan join minimum cost serta upsert progress per user.
+Main Functions: Menjalankan query material student, teacher, dan admin global dengan join minimum cost serta upsert progress per user.
 Side Effects: Membaca dan menulis tabel materials dan material_progresses pada PostgreSQL.
 */
 
-import { and, asc, desc, eq, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, ilike, or, sql } from 'drizzle-orm'
 
 import type {
   CreateMaterialInput,
@@ -18,7 +18,7 @@ import type {
 } from '../../domain/repositories/material.repository'
 import type { MaterialEntity } from '../../domain/entities/material.entity'
 import type { AppDatabase } from '../database/connection'
-import { materialProgresses, materials, modules, subjects } from '../database/schema'
+import { materialProgresses, materials, modules, subjectTeacherAssignments, subjects } from '../database/schema'
 import { MaterialMapper } from '../mappers/material.mapper'
 
 export class MaterialRepositoryImpl implements IMaterialRepository {
@@ -70,6 +70,7 @@ export class MaterialRepositoryImpl implements IMaterialRepository {
         moduleTitle: modules.title,
         subjectId: subjects.id,
         subjectName: subjects.name,
+        branchId: materials.branchId,
         title: materials.title,
         slug: materials.slug,
         summary: materials.summary,
@@ -95,6 +96,7 @@ export class MaterialRepositoryImpl implements IMaterialRepository {
         moduleTitle: modules.title,
         subjectId: subjects.id,
         subjectName: subjects.name,
+        branchId: materials.branchId,
         title: materials.title,
         slug: materials.slug,
         summary: materials.summary,
@@ -108,7 +110,56 @@ export class MaterialRepositoryImpl implements IMaterialRepository {
       .innerJoin(subjects, eq(subjects.id, modules.subjectId))
       .where(and(
         eq(materials.createdBy, teacherId),
-        branchId ? eq(materials.branchId, branchId) : undefined
+        branchId ? eq(materials.branchId, branchId) : undefined,
+        sql<boolean>`(
+          not exists (
+            select 1 from ${subjectTeacherAssignments}
+            where ${subjectTeacherAssignments.subjectId} = ${subjects.id}
+          )
+          or exists (
+            select 1 from ${subjectTeacherAssignments}
+            where ${subjectTeacherAssignments.subjectId} = ${subjects.id}
+              and ${subjectTeacherAssignments.teacherId} = ${teacherId}
+          )
+        )`
+      ))
+      .orderBy(desc(materials.updatedAt))
+  }
+
+  async listAllForAdmin(filters: { moduleId?: string; subjectId?: string; isPublished?: boolean; searchQuery?: string } = {}): Promise<TeacherMaterialListItem[]> {
+    const searchQuery = filters.searchQuery?.trim()
+
+    return this.database
+      .select({
+        id: materials.id,
+        moduleId: materials.moduleId,
+        moduleTitle: modules.title,
+        subjectId: subjects.id,
+        subjectName: subjects.name,
+        branchId: materials.branchId,
+        title: materials.title,
+        slug: materials.slug,
+        summary: materials.summary,
+        materialType: materials.materialType,
+        sortOrder: materials.sortOrder,
+        isPublished: materials.isPublished,
+        updatedAt: materials.updatedAt
+      })
+      .from(materials)
+      .innerJoin(modules, eq(modules.id, materials.moduleId))
+      .innerJoin(subjects, eq(subjects.id, modules.subjectId))
+      .where(and(
+        filters.moduleId ? eq(materials.moduleId, filters.moduleId) : undefined,
+        filters.subjectId ? eq(subjects.id, filters.subjectId) : undefined,
+        typeof filters.isPublished === 'boolean' ? eq(materials.isPublished, filters.isPublished) : undefined,
+        searchQuery
+          ? or(
+              ilike(materials.title, `%${searchQuery}%`),
+              ilike(materials.summary, `%${searchQuery}%`),
+              ilike(modules.title, `%${searchQuery}%`),
+              ilike(subjects.name, `%${searchQuery}%`)
+            )
+          : undefined
       ))
       .orderBy(desc(materials.updatedAt))
   }

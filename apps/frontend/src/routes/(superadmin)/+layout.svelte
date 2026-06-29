@@ -43,6 +43,7 @@ Side Effects: Menyimpan user aktif ke auth store client-side.
       icon: 'book-open',
       children: [
         { href: '/superadmin/kurikulum', label: 'Kelola Kurikulum', permission: 'curriculum.manage', icon: 'book-open' },
+        { href: '/superadmin/materi', label: 'Kelola Materi', permission: 'material.manage.branch', icon: 'book-open' },
         { href: '/superadmin/ujian', label: 'Kelola Ujian & Soal', permission: 'exam.view', icon: 'file-text' },
         { href: '/superadmin/paket', label: 'Kelola Paket', permission: 'package.manage', icon: 'package' }
       ]

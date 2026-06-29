@@ -1,8 +1,8 @@
 <!--
-Tujuan: Menyediakan shell navigasi untuk seluruh area murid.
+Tujuan: Menyediakan shell navigasi untuk seluruh area murid termasuk entry gamifikasi.
 Caller: Route group `(student)`.
 Dependensi: RoleShell dan auth store.
-Main Functions: Menghydrasi auth store lalu merender sidebar murid dan children route.
+Main Functions: Menghydrasi auth store lalu merender sidebar murid, menu belajar, gamifikasi, dan children route.
 Side Effects: Menyimpan user aktif ke auth store client-side.
 -->
 
@@ -23,7 +23,8 @@ Side Effects: Menyimpan user aktif ke auth store client-side.
       children: [
         { href: '/student/materi', label: 'Materi Belajar', icon: 'book-open' },
         { href: '/student/tryout', label: 'Try Out Ujian', icon: 'file-text' },
-        { href: '/student/leaderboard', label: 'Leaderboard Murid', icon: 'trophy' }
+        { href: '/student/leaderboard', label: 'Leaderboard Murid', icon: 'trophy' },
+        { href: '/student/gamifikasi', label: 'Gamifikasi', icon: 'trophy' }
       ]
     },
     {

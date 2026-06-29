@@ -1,6 +1,6 @@
 /*
-Tujuan: Menyediakan implementasi repository order berbasis Drizzle untuk checkout murid dan verifikasi admin.
-Caller: Use case purchase package, riwayat order, dan verifikasi pembayaran.
+Tujuan: Menyediakan implementasi repository order berbasis Drizzle untuk checkout murid, verifikasi admin, dan Midtrans gateway.
+Caller: Use case purchase package, riwayat order, verifikasi pembayaran, dan Midtrans notification handler.
 Dependensi: AppDatabase, schema orders/packages/users, dan OrderMapper.
 Main Functions: Menjalankan query order dengan filter user/branch/status yang hemat I/O dan mudah diindeks.
 Side Effects: Membaca dan menulis tabel orders pada PostgreSQL.
@@ -13,6 +13,7 @@ import type {
   CreateOrderInput,
   IOrderRepository,
   OrderListItem,
+  UpdateMidtransInput,
   VerifyOrderInput
 } from '../../domain/repositories/order.repository'
 import type { AppDatabase } from '../database/connection'
@@ -81,6 +82,33 @@ export class OrderRepositoryImpl implements IOrderRepository {
         verificationNote: input.verificationNote,
         verifiedBy: input.verifiedBy,
         verifiedAt: input.verifiedAt,
+        updatedAt: new Date()
+      })
+      .where(eq(orders.id, id))
+      .returning()
+
+    return OrderMapper.toDomain(row)
+  }
+
+  async findByMidtransTransactionId(transactionId: string): Promise<OrderEntity | null> {
+    const [row] = await this.database
+      .select()
+      .from(orders)
+      .where(eq(orders.midtransTransactionId, transactionId))
+      .limit(1)
+    return row ? OrderMapper.toDomain(row) : null
+  }
+
+  async updateMidtransData(id: string, input: UpdateMidtransInput, executor?: unknown): Promise<OrderEntity> {
+    const database = (executor as AppDatabase | undefined) ?? this.database
+    const [row] = await database
+      .update(orders)
+      .set({
+        ...(input.midtransSnapToken !== undefined && { midtransSnapToken: input.midtransSnapToken }),
+        ...(input.midtransTransactionId !== undefined && { midtransTransactionId: input.midtransTransactionId }),
+        ...(input.midtransPaymentType !== undefined && { midtransPaymentType: input.midtransPaymentType }),
+        ...(input.status !== undefined && { status: input.status }),
+        ...(input.verifiedAt !== undefined && { verifiedAt: input.verifiedAt }),
         updatedAt: new Date()
       })
       .where(eq(orders.id, id))

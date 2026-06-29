@@ -1,8 +1,8 @@
 /*
-Tujuan: Menyediakan use case update materi guru fase 3 dengan refresh attachment opsional.
+Tujuan: Menyediakan use case update materi guru fase 3 dengan refresh attachment opsional dan kontrol PIC guru.
 Caller: Teacher material controller.
-Dependensi: DB transaction, material repository, material service, dan object storage.
-Main Functions: Memastikan kepemilikan materi, upload lampiran baru bila ada, lalu memperbarui record materi.
+Dependensi: DB transaction, material repository, module repository, material service, dan object storage.
+Main Functions: Memastikan kepemilikan materi dan akses PIC, upload lampiran baru bila ada, lalu memperbarui record materi.
 Side Effects: Membaca/menulis tabel materials dan dapat upload object ke MinIO/S3.
 */
 
@@ -10,6 +10,7 @@ import type { MaterialType } from '@lms-bimbel/shared'
 
 import type { AppDatabase } from '../../../infrastructure/database/connection'
 import type { IMaterialRepository } from '../../../domain/repositories/material.repository'
+import type { IModuleRepository } from '../../../domain/repositories/module.repository'
 import { ForbiddenError, NotFoundError } from '../../../shared/errors/app.error'
 import { ObjectStorageService } from '../../../infrastructure/storage/object-storage.service'
 import { MaterialService } from '../../services/material.service'
@@ -31,6 +32,7 @@ export class UpdateMaterialUseCase {
   constructor(
     private readonly database: AppDatabase,
     private readonly materialRepository: IMaterialRepository,
+    private readonly moduleRepository: IModuleRepository,
     private readonly materialService: MaterialService,
     private readonly objectStorageService: ObjectStorageService
   ) {}
@@ -44,6 +46,18 @@ export class UpdateMaterialUseCase {
 
     if (currentMaterial.createdBy !== input.teacherId) {
       throw new ForbiddenError('Materi ini bukan milik Anda')
+    }
+
+    const moduleItem = await this.moduleRepository.findModuleById(currentMaterial.moduleId)
+
+    if (!moduleItem) {
+      throw new NotFoundError('Modul belajar')
+    }
+
+    const canAccessSubject = await this.moduleRepository.teacherCanAccessSubject(moduleItem.subjectId, input.teacherId)
+
+    if (!canAccessSubject) {
+      throw new ForbiddenError('Anda bukan PIC guru untuk mata pelajaran ini')
     }
 
     this.materialService.validateAttachment(input.attachmentFile, input.materialType)
